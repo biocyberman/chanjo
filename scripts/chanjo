@@ -5,10 +5,10 @@
 Usage:
   chanjo annotate <store> using <source> [--cutoff=<int>] [--splice-sites]
          [--dialect=<db>] [--sample=<str>] [--group=<int>]
-         [--json=<file> | --pipe] [--force]
+         [--json=<file> | --pipe] [--force] [--prepend=<string>]
   chanjo read <chrom> <start> <end> using <source> [--cutoff=<int>]
          [--dialect=<db>]
-  chanjo peak <store> <gene>... [--sample=<str>] [--group=<int>]
+  chanjo peek <store> <gene>... [--sample=<str>] [--group=<int>]
          [--dialect=<db>]
   chanjo build <store> using <ccds_path> [--force] [--dialect=<db>]
   chanjo <store> import <json_path>... [--dialect=<db>]
@@ -18,7 +18,7 @@ Usage:
 Commands:
   annotate            Annotate genes in a SQLite database
   read                Coverage for an interval in a BAM-file
-  peak                Peak at coverage metrics for an *annotated* gene
+  peek                Peek at coverage metrics for an *annotated* gene
   build               Builds a new skeleton SQLite database
   import              Import annotations after using "--json" option
 
@@ -45,6 +45,7 @@ Options:
   -j --json=<file>    Write temp JSON-file for later import (parallel)
   -p --pipe           Write to standard output, see "--json" (parallel)
   -f --force          Force overwrite of existing files
+  --prepend=<string>  Prepend a string to each chromosome ID [default: ""]
 """
 from __future__ import print_function
 from docopt import docopt
@@ -133,6 +134,7 @@ def main(args):
   force = args["--force"]
   ccds_path = args["<ccds_path>"]
   dialect = args["--dialect"]
+  chrom_prepend = args["--prepend"]
 
   # Set up adapters
   db = sql.ElementAdapter(store or ":memory:", dialect=dialect)
@@ -162,7 +164,9 @@ def main(args):
       "completeness": completeness
     }
 
-  elif args["peak"]:
+    print(json.dumps(output, indent=4))
+
+  elif args["peek"]:
     # Prints out a JSON string of the data you have requested based on genes.
     output = {}
 
@@ -181,6 +185,8 @@ def main(args):
             "coverage": data.coverage,
             "completeness": data.completeness
           })
+
+    print(json.dumps(output, indent=4))
 
   elif args["build"]:
     # Builds a new database instance with barebones structure and
@@ -216,7 +222,7 @@ def main(args):
 
     exon = db.get("class", "exon")
     data = [None] * 24
-    for i, chrom in enumerate(utils.chromosomes()):
+    for i, chrom in enumerate(utils.chromosomes(chrom_prepend)):
       exons = db.session.query(exon.start, exon.end, exon.id)\
                 .filter_by(chrom=chrom).order_by(exon.start).all()
 
@@ -229,7 +235,7 @@ def main(args):
       "sample_id": sample_id,
       "group_id": group_id,
       "cutoff": cutoff,
-      "source": source,
+      "source": path(source).abspath(),
       "splice": args["--splice-sites"],
       "annotations": list(flat_data)
     }
