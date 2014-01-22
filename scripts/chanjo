@@ -8,7 +8,7 @@ Usage:
          [--json=<file> | --pipe] [--force]
   chanjo read <chrom> <start> <end> using <source> [--cutoff=<int>]
          [--dialect=<db>]
-  chanjo peak <store> <gene>... [--sample=<str>] [--group=<int>]
+  chanjo peek <store> <gene>... [--sample=<str>] [--group=<int>]
          [--dialect=<db>]
   chanjo build <store> using <ccds_path> [--force] [--dialect=<db>]
   chanjo <store> import <json_path>... [--dialect=<db>]
@@ -18,7 +18,7 @@ Usage:
 Commands:
   annotate            Annotate genes in a SQLite database
   read                Coverage for an interval in a BAM-file
-  peak                Peak at coverage metrics for an *annotated* gene
+  peek                Peek at coverage metrics for an *annotated* gene
   build               Builds a new skeleton SQLite database
   import              Import annotations after using "--json" option
 
@@ -162,7 +162,9 @@ def main(args):
       "completeness": completeness
     }
 
-  elif args["peak"]:
+    print(json.dumps(output, indent=4))
+
+  elif args["peek"]:
     # Prints out a JSON string of the data you have requested based on genes.
     output = {}
 
