@@ -229,7 +229,7 @@ def main(args):
       "sample_id": sample_id,
       "group_id": group_id,
       "cutoff": cutoff,
-      "source": source,
+      "source": path(source).abspath(),
       "splice": args["--splice-sites"],
       "annotations": list(flat_data)
     }
