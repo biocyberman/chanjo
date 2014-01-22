@@ -5,7 +5,7 @@
 Usage:
   chanjo annotate <store> using <source> [--cutoff=<int>] [--splice-sites]
          [--dialect=<db>] [--sample=<str>] [--group=<int>]
-         [--json=<file> | --pipe] [--force]
+         [--json=<file> | --pipe] [--force] [--prepend=<string>]
   chanjo read <chrom> <start> <end> using <source> [--cutoff=<int>]
          [--dialect=<db>]
   chanjo peek <store> <gene>... [--sample=<str>] [--group=<int>]
@@ -45,6 +45,7 @@ Options:
   -j --json=<file>    Write temp JSON-file for later import (parallel)
   -p --pipe           Write to standard output, see "--json" (parallel)
   -f --force          Force overwrite of existing files
+  --prepend=<string>  Prepend a string to each chromosome ID [default: ""]
 """
 from __future__ import print_function
 from docopt import docopt
@@ -133,6 +134,7 @@ def main(args):
   force = args["--force"]
   ccds_path = args["<ccds_path>"]
   dialect = args["--dialect"]
+  chrom_prepend = args["--prepend"]
 
   # Set up adapters
   db = sql.ElementAdapter(store or ":memory:", dialect=dialect)
@@ -184,7 +186,7 @@ def main(args):
             "completeness": data.completeness
           })
 
-      print(json.dumps(output, indent=4))
+    print(json.dumps(output, indent=4))
 
   elif args["build"]:
     # Builds a new database instance with barebones structure and
@@ -220,7 +222,7 @@ def main(args):
 
     exon = db.get("class", "exon")
     data = [None] * 24
-    for i, chrom in enumerate(utils.chromosomes()):
+    for i, chrom in enumerate(utils.chromosomes(chrom_prepend)):
       exons = db.session.query(exon.start, exon.end, exon.id)\
                 .filter_by(chrom=chrom).order_by(exon.start).all()
 
