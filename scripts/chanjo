@@ -45,7 +45,7 @@ Options:
   -j --json=<file>    Write temp JSON-file for later import (parallel)
   -p --pipe           Write to standard output, see "--json" (parallel)
   -f --force          Force overwrite of existing files
-  --prepend=<string>  Prepend a string to each chromosome ID [default: ""]
+  --prepend=<string>  Prepend a string to each chromosome ID [default: auto]
 """
 from __future__ import print_function
 from docopt import docopt
@@ -134,7 +134,14 @@ def main(args):
   force = args["--force"]
   ccds_path = args["<ccds_path>"]
   dialect = args["--dialect"]
-  chrom_prepend = args["--prepend"]
+
+  # This is the default.
+  # In the future, Chanjo will guess baesd on BAM headers
+  if args['--prepend'] == 'auto':
+    chrom_prepend = ''
+  else:
+    # Use whatever the user defined
+    chrom_prepend = args['--prepend']
 
   # Set up adapters
   db = sql.ElementAdapter(store or ":memory:", dialect=dialect)
