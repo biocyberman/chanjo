@@ -3,50 +3,50 @@
 """Chanjo CLI
 
 Usage:
-  chanjo annotate <store> using <source> [--cutoff=<int> --splice-sites=<bool>
-         --dialect=<db> --sample=<str> --group=<int>  --config=<file>
-         (--json=<file> | --pipe=<bool>) --force=<bool> --prepend=<string>]
-  chanjo read <chrom> <start> <end> using <source> [--cutoff=<int>
-         --dialect=<db>]
-  chanjo peek <store> <gene>... [--sample=<str> --group=<int>
-         --dialect=<db>]
-  chanjo build <store> using <ccds_path> [--force=<bool> --dialect=<db>]
-  chanjo <store> import <json_path>... [--dialect=<db>]
+  chanjo annotate <store> using <source> [--cutoff=INT] [--splice-sites=BOOL]
+         [--dialect=DB] [--sample=STR] [--group=INT] [--config=FILE]
+         [--force=BOOL] [--prepend=STR] [--json=FILE | --pipe=BOOL]
+  chanjo read <chrom> <start> <end> using <source> [--cutoff=INT]
+         [--dialect=DB]
+  chanjo peek <store> <gene>... [--sample=STR] [--group=INT] [--dialect=DB]
+  chanjo build <store> using <ccds_path> [--force=BOOL] [--dialect=DB]
+         [--force=BOOL]
+  chanjo <store> import <json_path>... [--dialect=DB]
   chanjo -h | --help
   chanjo --version
 
 Commands:
-  annotate            Annotate genes in a SQLite database
-  read                Coverage for an interval in a BAM-file
-  peek                Peek at coverage metrics for an *annotated* gene
-  build               Builds a new skeleton SQLite database
-  import              Import annotations after using "--json" option
+  annotate                 Annotate genes in a SQLite database
+  read                     Coverage for an interval in a BAM-file
+  peek                     Peek at coverage metrics for an *annotated* gene
+  build                    Builds a new skeleton SQLite database
+  import                   Import annotations after using "--json" option
 
 Arguments:
-  <store>             Path to new or existing SQLite database
-  <source>            Path to the BAM alignment file (.bam)
-  <ccds_path>         Path to CCDS database dump (.txt)
-  <gene>              List of HGNC symbols
-  <json_path>         List of JSON-files to import
-  <chrom>             Chromosome ID
-  <start>             Starting interval position (1-based)
-  <end>               Ending interval position (1-based)
+  <store>                  Path to new or existing SQLite database
+  <source>                 Path to the BAM alignment file (.bam)
+  <ccds_path>              Path to CCDS database dump (.txt)
+  <gene>                   List of HGNC symbols
+  <json_path>              List of JSON-files to import
+  <chrom>                  Chromosome ID
+  <start>                  Starting interval position (1-based)
+  <end>                    Ending interval position (1-based)
 
 Options:
-  -h --help           Show this screen
-  --version           Show version
-  -r --read=<file>    Text file with one HGNC symbol per line
-  --ccds=<file>       Path to CCDS database dump (build new database)
-  -c --cutoff=<int>   Cutoff for completeness
-  -d --dialect=<db>   Type of database: 'sqlite' or 'mysql'
-  -ss --splice-sites=<bool> Include splice sites (+/- 2 bases) for each exon
-  -s --sample=<str>   Sample ID, e.g. '0-0-0U'
-  -g --group=<int>    Group/Family ID
-  -j --json=<file>    Write temp JSON-file for later import (parallel)
-  -p --pipe=<bool>    Write to standard output, see "--json" (parallel)
-  -f --force=<bool>   Force overwrite of existing files
-  --prepend=<string>  Prepend a string to each chromosome ID
-  --config=<file>     Path to YAML/JSON config file
+  -h --help                Show this screen
+  -v --version             Show version
+  -r --read=FILE           Text file with one HGNC symbol per line
+  --ccds=FILE              Path to CCDS database dump (build new database)
+  -c --cutoff=INT          Cutoff for completeness
+  -d --dialect=DB          Type of database: 'sqlite' or 'mysql'
+  -ss --splice-sites=BOOL  Include splice sites (+/- 2 bases) for each exon
+  -s --sample=STR          Sample ID, e.g. '0-0-0U'
+  -g --group=INT           Group/Family ID
+  -j --json=FILE           Write temp JSON-file for later import (parallel)
+  -p --pipe=BOOL           Write to standard output, see "--json" (parallel)
+  -f --force=BOOL          Force overwrite of existing files
+  --prepend=STR            Prepend a string to each chromosome ID
+  --config=FILE            Path to YAML/JSON config file
 """
 from __future__ import print_function
 from docopt import docopt
@@ -55,9 +55,8 @@ import json
 import sys
 from path import path
 
-import rc
 import chanjo
-from chanjo import bam, sql, utils
+from chanjo import bam, sql, utils, rc
 
 
 def fileCheck(*fpaths, **kwargs):
@@ -128,7 +127,7 @@ def main(args):
   # Prepare input arguments
   cutoff = int(args['cutoff'])
   group_id = int(args['group'])
-  sample_id = args["--sample"]
+  sample_id = args['sample']
   store = args['store']
   source = args['source']
   force = args['force']
@@ -274,6 +273,6 @@ if __name__ == '__main__':
     'group': '0'
   }
   # Parse potential config files
-  options = rc.extend_args(args, defaults, dir_path=args['--config'])
+  options = rc.extend_args(args, __file__, defaults, dir_path=args['--config'])
 
   main(options)

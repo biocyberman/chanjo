@@ -12,7 +12,9 @@ class TestCoverageAdapter:
     self.adapter = CoverageAdapter(bam_path)
 
     # These are the main results from "align.bam"
-    self.depths = [2., 4., 5., 5., 5., 5., 6., 7., 7., 7., 7., 7., 7., 7., 7., 7., 7., 7., 7., 7., 7., 7., 7., 8., 8., 7., 7., 7., 7., 7., 7., 7., 6., 4., 4., 3., 3., 2., 2.]
+    self.depths = [2., 4., 5., 5., 5., 5., 6., 7., 7., 7., 7., 7., 7., 7., 7.,
+                   7., 7., 7., 7., 7., 7., 7., 7., 8., 8., 7., 7., 7., 7., 7.,
+                   7., 7., 6., 4., 4., 3., 3., 2., 2.]
 
   def setUp(self):
     print("SETUP!")

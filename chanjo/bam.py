@@ -63,12 +63,12 @@ class CoverageAdapter(pysam.Samfile):
     :returns: A numpy array of read depths for *each* position in the interval
     """
     # Generate a list of 0 read depth for each position
-    positions = np.zeros(end+1-start)
+    positions = np.zeros(end + 1 - start)
 
     # Start Pileup iterator and walk through each position in the interval
     # `truncate` will make sure it starts and ends on the given positions!
     # +1 to end because pysam otherwise stops one base short by default
-    for col in self.pileup(str(chrom), start, end+1, truncate=True):
+    for col in self.pileup(str(chrom), start, end + 1, truncate=True):
 
       # Overwrite the read depth in the correct position
       # This will allow simple slicing to get at the positions of interest

@@ -30,8 +30,9 @@ class FileExistsExeption(Exception):
   pass
 
 
-def build_config_path(script_name, scope='local', dir_path=None):
-  """<public> Build the path to the config file.
+def build_config_path(script_name, scope='local'):
+  """
+  <public> Build the path to the config file.
 
   :param str script_name: The name of the script/program, usually `__file__`
   :param bool scope:      Whether the config file is in cwd (or $HOME)
@@ -41,25 +42,27 @@ def build_config_path(script_name, scope='local', dir_path=None):
   # Figure out the default .rc config script_name
   rc_name = '.{}rc'.format(path(script_name).basename().replace('.py', ''))
 
-  if dir_path:
-    # Convert to Path object
-    dir_path = path(dir_path)
-
+  if scope == 'local':
+    # Save absolute path to the current directory
+    dir_path = path.getcwd()
+  elif scope == 'global':
+    # Assume 'global', meaning the config file is placed in the home dir.
+    dir_path = path('~').expanduser()
   else:
-    if scope == 'local':
-      # Save absolute path to the current directory
-      dir_path = path.getcwd()
-    elif scope == 'global':
-      # Assume 'global', meaning the config file is placed in the home dir.
-      dir_path = path('~').expanduser()
-    else:
-      raise ValueError("'scope' must be either 'local' or 'global'.")
+    # Check if scope if defined as a directory
+    dir_path = path(scope)
+
+    # The path needs to be an existing directory path
+    if not dir_path.isdir():
+      raise ValueError("'{}' must be either 'local', 'global' or an"
+                       "existing directory path.".format(scope))
 
   return os.path.join(dir_path, rc_name)
 
 
 def convert_docopt_args(dictionary):
-  """<public>Converts a docopt argument dict to simpler names, more suitable
+  """
+  <public>Converts a docopt argument dict to simpler names, more suitable
   for defining options in a config file.
 
   :param dict dictionary: docopt generated args dictionary
@@ -87,47 +90,58 @@ def convert_docopt_args(dictionary):
   return new_dict
 
 
-def extend_args(args, defaults=None, scope='local', dir_path=None):
-  """<public> Main function that updates the command line args with your
+def extend_args(args, script, defaults=None, scopes=['global', 'local']):
+  """
+  <public> Main function that updates the command line args with your
   sensible defaults and potential user configuration options.
 
   :param dict args: Command line arguments (e.g. from docopt function)
+  :param str script: The name of the script (defines .<script>rc)
   :param dict defaults: (optional) Defaults for all/some of the arguments
-  :param str scope: (optional) Is config stored per folder (local) or in
-                    `$HOME` (global)
-  :param str dir_path: (optional) Specify folder path to config file
+  :param list scopes: (optional) Which config file(s) to consider: 'local'
+                      (per folder), 'global' (`$HOME`), and/or custom path
   """
   # Set up options hash with provided defaults
   if defaults is None:
     defaults = {}
 
-  # Get path to config file
-  rc_path = build_config_path(__file__, scope=scope, dir_path=dir_path)
+  for scope in scopes:
+    # Get path to config file
+    rc_path = build_config_path(script, scope=scope)
 
-  # Check if the config file exists
-  if rc_path.exists():
-    # Open a file stream to the config file
-    with rc_path.open('r') as stream:
-      # Read in values from the config file
-      # YAML is a superset of JSON so we can use the same parser independent
-      # of how the config file is written.
-      config = yaml.load(stream)
+    # Check if the config file exists
+    if rc_path.exists():
+      # Open a file stream to the config file
+      with rc_path.open('r') as stream:
+        # Read in values from the config file
+        # YAML is a superset of JSON so we can use the same parser independent
+        # of how the config file is written.
+        config = yaml.load(stream)
 
-    # Merge defaults and config file options
-    defaults.update(config)
+      # Merge defaults and config file options
+      defaults.update(config)
 
   # Convert to simpler argument keys
   simple_args = convert_docopt_args(args)
 
   # Merge combo and command line options
-  defaults.update(simple_args)
+  for key, value in simple_args.iteritems():
+    # If the user hasn't supplied a command line option ('falsy')
+    if not value:
+      # Don't do anyting if the option exists
+      if key in defaults:
+        continue
+
+    # Replace/add the command line option to the final options
+    defaults[key] = value
 
   # Serve the final options to the user
   return defaults
 
 
 def write_config(contents, path_, type='json', overwrite=True):
-  """<public> Writes/Overwrites a config file with (updated) values in one of
+  """
+  <public> Writes/Overwrites a config file with (updated) values in one of
   the supported formats: JSON, YAML.
 
   :param dict contents: `Dict` with all options
