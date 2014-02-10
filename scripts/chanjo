@@ -3,14 +3,14 @@
 """Chanjo CLI
 
 Usage:
-  chanjo annotate <store> using <source> [--cutoff=<int>] [--splice-sites]
-         [--dialect=<db>] [--sample=<str>] [--group=<int>]
-         [--json=<file> | --pipe] [--force] [--prepend=<string>]
-  chanjo read <chrom> <start> <end> using <source> [--cutoff=<int>]
-         [--dialect=<db>]
-  chanjo peek <store> <gene>... [--sample=<str>] [--group=<int>]
-         [--dialect=<db>]
-  chanjo build <store> using <ccds_path> [--force] [--dialect=<db>]
+  chanjo annotate <store> using <source> [--cutoff=<int> --splice-sites=<bool>
+         --dialect=<db> --sample=<str> --group=<int>  --config=<file>
+         (--json=<file> | --pipe=<bool>) --force=<bool> --prepend=<string>]
+  chanjo read <chrom> <start> <end> using <source> [--cutoff=<int>
+         --dialect=<db>]
+  chanjo peek <store> <gene>... [--sample=<str> --group=<int>
+         --dialect=<db>]
+  chanjo build <store> using <ccds_path> [--force=<bool> --dialect=<db>]
   chanjo <store> import <json_path>... [--dialect=<db>]
   chanjo -h | --help
   chanjo --version
@@ -37,15 +37,16 @@ Options:
   --version           Show version
   -r --read=<file>    Text file with one HGNC symbol per line
   --ccds=<file>       Path to CCDS database dump (build new database)
-  -c --cutoff=<int>   Cutoff for completeness [default: 10]
-  -d --dialect=<db>   Type of database: 'sqlite' or 'mysql' [default: sqlite]
-  -ss --splice-sites  Include splice sites (+/- 2 bases) for each exon
-  -s --sample=<str>   Sample ID [default: 0-0-0U]
-  -g --group=<int>    Group/Family ID [default: 0]
+  -c --cutoff=<int>   Cutoff for completeness
+  -d --dialect=<db>   Type of database: 'sqlite' or 'mysql'
+  -ss --splice-sites=<bool> Include splice sites (+/- 2 bases) for each exon
+  -s --sample=<str>   Sample ID, e.g. '0-0-0U'
+  -g --group=<int>    Group/Family ID
   -j --json=<file>    Write temp JSON-file for later import (parallel)
-  -p --pipe           Write to standard output, see "--json" (parallel)
-  -f --force          Force overwrite of existing files
-  --prepend=<string>  Prepend a string to each chromosome ID [default: auto]
+  -p --pipe=<bool>    Write to standard output, see "--json" (parallel)
+  -f --force=<bool>   Force overwrite of existing files
+  --prepend=<string>  Prepend a string to each chromosome ID
+  --config=<file>     Path to YAML/JSON config file
 """
 from __future__ import print_function
 from docopt import docopt
@@ -54,18 +55,18 @@ import json
 import sys
 from path import path
 
+import rc
 import chanjo
 from chanjo import bam, sql, utils
 
 
 def fileCheck(*fpaths, **kwargs):
-  """
-  Checks a path for an existing file before overwrite.
+  """<public> Checks a path for an existing file before overwrite.
 
   :param bool force: Whether to skip the actual checking (optional)
   """
   # Get optional "force" keyword argument
-  force = kwargs.get("force", False)
+  force = kwargs.get('force', False)
 
   for fpath in fpaths:
     f = path(fpath)
@@ -75,25 +76,24 @@ def fileCheck(*fpaths, **kwargs):
 
 
 def import_(db, data):
+  """<private> Imports annotations stored in JSON-files for example after
+  running Chanjo in parallel.
   """
-  Imports annotations stored in JSON-files for example after running Chanjo in
-  parallel.
-  """
-  annotations = data["annotations"]
-  sample_id = data["sample_id"]
-  group_id = data["group_id"]
+  annotations = data['annotations']
+  sample_id = data['sample_id']
+  group_id = data['group_id']
 
   # Add a Sample entry with meta-data
-  db.add(db.create("sample",
+  db.add(db.create('sample',
     sample=sample_id,
     group=group_id,
-    cutoff=data["cutoff"],
-    source=data["source"],
-    splice=data["splice"]
+    cutoff=data['cutoff'],
+    source=data['source'],
+    splice=data['splice']
   ))
 
   # And for each of the annotations
-  db.add([db.create("exon_data",
+  db.add([db.create('exon_data',
     element_id=anno[2],
     coverage=anno[0],
     completeness=anno[1],
@@ -106,7 +106,7 @@ def import_(db, data):
   #   transcripts and genes. Not ready yet.
   #   N.B. We commit so the next query works!
   # ------------------------------------------------------
-  db.add([db.create("transcript_data",
+  db.add([db.create('transcript_data',
     element_id=tx[0],
     sample_id=sample_id,
     group_id=group_id,
@@ -115,7 +115,7 @@ def import_(db, data):
   ) for tx in db.transcriptStats(sample_id)]).commit()
 
   # Extend annotations to genes
-  db.add([db.create("gene_data",
+  db.add([db.create('gene_data',
     element_id=gs[0],
     sample_id=sample_id,
     group_id=group_id,
@@ -126,76 +126,76 @@ def import_(db, data):
 
 def main(args):
   # Prepare input arguments
-  cutoff = int(args["--cutoff"])
-  group_id = int(args["--group"])
+  cutoff = int(args['cutoff'])
+  group_id = int(args['group'])
   sample_id = args["--sample"]
-  store = args["<store>"]
-  source = args["<source>"]
-  force = args["--force"]
-  ccds_path = args["<ccds_path>"]
-  dialect = args["--dialect"]
+  store = args['store']
+  source = args['source']
+  force = args['force']
+  ccds_path = args['ccds_path']
+  dialect = args['dialect']
 
   # This is the default.
   # In the future, Chanjo will guess baesd on BAM headers
-  if args['--prepend'] == 'auto':
+  if args['prepend'] == 'auto':
     chrom_prepend = ''
   else:
     # Use whatever the user defined
-    chrom_prepend = args['--prepend']
+    chrom_prepend = args['prepend']
 
   # Set up adapters
-  db = sql.ElementAdapter(store or ":memory:", dialect=dialect)
+  db = sql.ElementAdapter(store or ':memory:', dialect=dialect)
 
   if source:
     cov = bam.CoverageAdapter(source)
 
   # First command will determine which path to take
-  if args["read"]:
+  if args['read']:
     # Reads coverage metrics from a BAM-file across a given interval and prints
     # the results as JSON string.
-    chrom = args["<chrom>"]
-    start = int(args["<start>"])
-    end = int(args["<end>"])
+    chrom = args['chrom']
+    start = int(args['start'])
+    end = int(args['end'])
 
     # Read the BAM-file, calculate coverage, and print to console.
     depths = cov.read(chrom, start, end)
     coverage, completeness = utils.coverageMetrics(depths, cutoff)
 
     output = {
-      "interval": {
-        "chrom": chrom,
-        "start": start,
-        "end": end
+      'interval': {
+        'chrom': chrom,
+        'start': start,
+        'end': end
       },
-      "coverage": coverage,
-      "completeness": completeness
+      'coverage': coverage,
+      'completeness': completeness
     }
 
     print(json.dumps(output, indent=4))
 
-  elif args["peek"]:
+  elif args['peek']:
     # Prints out a JSON string of the data you have requested based on genes.
     output = {}
 
     # Loop over each of the HGNC symbols
-    for gene_id in args["<gene>"]:
+    for gene_id in args['gene']:
 
       output[gene_id] = []
 
       # Loop over each of the annotations
-      for data in db.get("gene", gene_id).data:
+      for data in db.get('gene', gene_id).data:
 
         # Print the annotation according to what the user requests (all or one)
-        if sample_id == "0-0-0U" or sample_id == data.sample_id:
+        if sample_id == '0-0-0U' or sample_id == data.sample_id:
           output[gene_id].append({
-            "sample": data.sample_id,
-            "coverage": data.coverage,
-            "completeness": data.completeness
+            'sample': data.sample_id,
+            'coverage': data.coverage,
+            'completeness': data.completeness
           })
 
     print(json.dumps(output, indent=4))
 
-  elif args["build"]:
+  elif args['build']:
     # Builds a new database instance with barebones structure and
     # relationships, no annotations. This is useful when you plan to run
     # Chanjo in parallel and need a reference database.
@@ -206,28 +206,28 @@ def main(args):
     # Build up a barebones database structure
     db.quickBuild(ccds_path)
 
-  elif args["import"]:
+  elif args['import']:
     # Import one text-file at a time
-    for txt_path in args["<json_path>"]:
+    for txt_path in args['json_path']:
 
       # Open the file
-      with open(txt_path, "r") as handle:
+      with open(txt_path, 'r') as handle:
 
         data = json.load(handle)
         import_(db, data)
 
   else:
     # ... which means we're going to annotate some coverage
-    if args["--json"]:
+    if args['json']:
       # Check path
-      fileCheck(args["--json"], force=force)
+      fileCheck(args['json'], force=force)
 
     # Splice site check
     extend = 0
-    if args["--splice-sites"]:
+    if args['splice-sites']:
       extend = 2
 
-    exon = db.get("class", "exon")
+    exon = db.get('class', 'exon')
     data = [None] * 24
     for i, chrom in enumerate(utils.chromosomes(chrom_prepend)):
       exons = db.session.query(exon.start, exon.end, exon.id)\
@@ -239,21 +239,21 @@ def main(args):
     flat_data = itertools.chain.from_iterable(data)
 
     output = {
-      "sample_id": sample_id,
-      "group_id": group_id,
-      "cutoff": cutoff,
-      "source": path(source).abspath(),
-      "splice": args["--splice-sites"],
-      "annotations": list(flat_data)
+      'sample_id': sample_id,
+      'group_id': group_id,
+      'cutoff': cutoff,
+      'source': path(source).abspath(),
+      'splice': args['splice-sites'],
+      'annotations': list(flat_data)
     }
 
-    if args["--json"]:
+    if args['json']:
       # We should save a temp version of the exon annotations to a text-file
       # rather than persisting to the datastore. We use JSON.
-      with open(args["--json"], "w") as handle:
+      with open(args['json'], 'w') as handle:
         json.dump(output, handle)
 
-    elif not args["--pipe"]:
+    elif not args['pipe']:
       # Go straight to importing data to database
       import_(db, output)
 
@@ -261,8 +261,19 @@ def main(args):
       # Print to standard out to enable piping (if --pipe)
       print(json.dumps(output, indent=4))
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   # Parse arguments based on docstring above
-  args = docopt(__doc__, version="Chanjo {v}".format(v=chanjo.__version__))
+  args = docopt(__doc__, version='Chanjo {v}'.format(v=chanjo.__version__))
 
-  main(args)
+  # Set up sensible defaults
+  defaults = {
+    'dialect': 'sqlite',
+    'cutoff': '10',
+    'prepend': 'auto',
+    'sample': '0-0-0U',
+    'group': '0'
+  }
+  # Parse potential config files
+  options = rc.extend_args(args, defaults, dir_path=args['--config'])
+
+  main(options)
