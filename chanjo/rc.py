@@ -76,9 +76,9 @@ def convert_docopt_args(dictionary):
       new_key = key.replace('--', '')
 
       # Also update fake 'boolean' arguments
-      if value == 'yes':
+      if value.lower() in ('yes', 'true'):
         value = True
-      elif value == 'no':
+      elif value.lower() in ('no', 'false'):
         value = False
 
     elif '<' in key:
