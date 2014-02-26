@@ -34,7 +34,7 @@ class GeneData(Base):
 
   :param str element_id: HGNC gene symbol
   :param str sample_id: Unique sample identifier
-  :param int group_id: "Unique" group identifier
+  :param str group_id: "Unique" group identifier
   :param float coverage: Average coverage for the gene
   :param float completeness: Ratio of adequately covered bases
   """
@@ -47,7 +47,7 @@ class GeneData(Base):
   # These column maps coverage/completeness to an individual+group
   sample_id = sa.Column(sa.String(32), sa.ForeignKey("Sample.id"))
   sample = relationship("Sample", backref=backref("genes"))
-  group_id = sa.Column(sa.Integer)
+  group_id = sa.Column(sa.String(32))
 
   # Genetic relationship
   element_id = sa.Column(sa.String(32), sa.ForeignKey("Gene.id"))
@@ -56,7 +56,7 @@ class GeneData(Base):
   def __init__(self, element_id, sample_id=None, group_id=None,
                coverage=None, completeness=None):
     super(GeneData, self).__init__()
-    
+
     self.element_id = element_id
     self.sample_id = sample_id
     self.group_id = group_id
@@ -72,7 +72,7 @@ class TranscriptData(Base):
 
   :param str element_id: Unique CCDS transcript identifier
   :param str sample_id: Unique sample identifier
-  :param int group_id: "Unique" group identifier
+  :param str group_id: "Unique" group identifier
   :param float coverage: Average coverage for the transcript
   :param float completeness: Ratio of adequately covered bases
   """
@@ -85,7 +85,7 @@ class TranscriptData(Base):
   # These column maps coverage/completeness to an individual+group
   sample_id = sa.Column(sa.String(32), sa.ForeignKey("Sample.id"))
   sample = relationship("Sample", backref=backref("transcripts"))
-  group_id = sa.Column(sa.Integer)
+  group_id = sa.Column(sa.String(32))
 
   # Genetic relationship
   element_id = sa.Column(sa.String(32), sa.ForeignKey("Transcript.id"))
@@ -94,7 +94,7 @@ class TranscriptData(Base):
   def __init__(self, element_id, sample_id=None, group_id=None,
                coverage=None, completeness=None):
     super(TranscriptData, self).__init__()
-    
+
     self.element_id = element_id
     self.sample_id = sample_id
     self.group_id = group_id
@@ -110,7 +110,7 @@ class ExonData(Base):
 
   :param str element_id: HGNC gene symbol
   :param str sample_id: Unique sample identifier
-  :param int group_id: "Unique" group identifier
+  :param str group_id: "Unique" group identifier
   :param float coverage: Average coverage for the exon
   :param float completeness: Ratio of adequately covered bases
   """
@@ -123,7 +123,7 @@ class ExonData(Base):
   # These column maps coverage/completeness to an individual+group
   sample_id = sa.Column(sa.String(32), sa.ForeignKey("Sample.id"))
   sample = relationship("Sample", backref=backref("exons"))
-  group_id = sa.Column(sa.Integer)
+  group_id = sa.Column(sa.String(32))
 
   # Genetic relationship
   element_id = sa.Column(sa.String(32), sa.ForeignKey("Exon.id"))
@@ -132,12 +132,13 @@ class ExonData(Base):
   def __init__(self, element_id, sample_id=None, group_id=None,
                coverage=None, completeness=None):
     super(ExonData, self).__init__()
-    
+
     self.element_id = element_id
     self.sample_id = sample_id
     self.group_id = group_id
     self.coverage = coverage
     self.completeness = completeness
+
 
 class Sample(Base):
   """
@@ -155,7 +156,7 @@ class Sample(Base):
   __tablename__ = "Sample"
 
   id = sa.Column(sa.String(32), primary_key=True)
-  group_id = sa.Column(sa.Integer)
+  group_id = sa.Column(sa.String(32))
 
   cutoff = sa.Column(sa.Integer)
   splice = sa.Column(sa.Boolean)

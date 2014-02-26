@@ -5,7 +5,8 @@
 Usage:
   chanjo annotate <store> using <source> [--cutoff=INT] [--splice-sites=BOOL]
          [--dialect=DB] [--sample=STR] [--group=INT] [--config=FILE]
-         [--force=BOOL] [--prepend=STR] [--json=FILE | --pipe=BOOL]
+         [--force=BOOL] [--prepend=STR] [--threshold=INT]
+         [--json=FILE | --pipe=BOOL]
   chanjo read <chrom> <start> <end> using <source> [--cutoff=INT]
          [--dialect=DB]
   chanjo peek <store> <gene>... [--sample=STR] [--group=INT] [--dialect=DB]
@@ -42,6 +43,7 @@ Options:
   -ss --splice-sites=BOOL  Include splice sites (+/- 2 bases) for each exon
   -s --sample=STR          Sample ID, e.g. '0-0-0U'
   -g --group=INT           Group/Family ID
+  -t --threshold=INT       Threshold for optimizing BAM-file reading
   -j --json=FILE           Write temp JSON-file for later import (parallel)
   -p --pipe=BOOL           Write to standard output, see "--json" (parallel)
   -f --force=BOOL          Force overwrite of existing files
@@ -125,22 +127,23 @@ def import_(db, data):
 
 def main(args):
   # Prepare input arguments
-  cutoff = int(args['cutoff'])
-  group_id = int(args['group'])
-  sample_id = args['sample']
-  store = args['store']
-  source = args['source']
-  force = args['force']
-  ccds_path = args['ccds_path']
-  dialect = args['dialect']
+  cutoff = int(args['--cutoff'])
+  group_id = int(args['--group'])
+  sample_id = args['--sample']
+  store = args['<store>']
+  source = args['<source>']
+  force = args['--force']
+  ccds_path = args['<ccds_path>']
+  dialect = args['--dialect']
+  threshold = int(args['--threshold'])
 
   # This is the default.
   # In the future, Chanjo will guess baesd on BAM headers
-  if args['prepend'] == 'auto':
+  if args['--prepend'] == 'auto':
     chrom_prepend = ''
   else:
     # Use whatever the user defined
-    chrom_prepend = args['prepend']
+    chrom_prepend = args['--prepend']
 
   # Set up adapters
   db = sql.ElementAdapter(store or ':memory:', dialect=dialect)
@@ -152,9 +155,9 @@ def main(args):
   if args['read']:
     # Reads coverage metrics from a BAM-file across a given interval and prints
     # the results as JSON string.
-    chrom = args['chrom']
-    start = int(args['start'])
-    end = int(args['end'])
+    chrom = args['<chrom>']
+    start = int(args['<start>'])
+    end = int(args['<end>'])
 
     # Read the BAM-file, calculate coverage, and print to console.
     depths = cov.read(chrom, start, end)
@@ -177,7 +180,7 @@ def main(args):
     output = {}
 
     # Loop over each of the HGNC symbols
-    for gene_id in args['gene']:
+    for gene_id in args['<gene>']:
 
       output[gene_id] = []
 
@@ -207,7 +210,7 @@ def main(args):
 
   elif args['import']:
     # Import one text-file at a time
-    for txt_path in args['json_path']:
+    for txt_path in args['<json_path>']:
 
       # Open the file
       with open(txt_path, 'r') as handle:
@@ -217,13 +220,13 @@ def main(args):
 
   else:
     # ... which means we're going to annotate some coverage
-    if args['json']:
+    if args['--json']:
       # Check path
-      fileCheck(args['json'], force=force)
+      fileCheck(args['--json'], force=force)
 
     # Splice site check
     extend = 0
-    if args['splice-sites']:
+    if args['--splice-sites']:
       extend = 2
 
     exon = db.get('class', 'exon')
@@ -232,7 +235,7 @@ def main(args):
       exons = db.session.query(exon.start, exon.end, exon.id)\
                 .filter_by(chrom=chrom).order_by(exon.start).all()
 
-      data[i] = utils.process(cov, chrom, exons, extend, cutoff, 17000)
+      data[i] = utils.process(cov, chrom, exons, extend, cutoff, threshold)
 
     # Flatten data list
     flat_data = itertools.chain.from_iterable(data)
@@ -242,17 +245,17 @@ def main(args):
       'group_id': group_id,
       'cutoff': cutoff,
       'source': path(source).abspath(),
-      'splice': args['splice-sites'],
+      'splice': args['--splice-sites'],
       'annotations': list(flat_data)
     }
 
     if args['json']:
       # We should save a temp version of the exon annotations to a text-file
       # rather than persisting to the datastore. We use JSON.
-      with open(args['json'], 'w') as handle:
+      with open(args['--json'], 'w') as handle:
         json.dump(output, handle)
 
-    elif not args['pipe']:
+    elif not args['--pipe']:
       # Go straight to importing data to database
       import_(db, output)
 
@@ -270,7 +273,8 @@ if __name__ == '__main__':
     'cutoff': '10',
     'prepend': 'auto',
     'sample': '0-0-0U',
-    'group': '0'
+    'group': '0',
+    'threshold': '17000'  # Optimized for human samples (+ CCDS)
   }
   # Parse potential config files
   options = rc.extend_args(args, __file__, defaults, dir_path=args['--config'])

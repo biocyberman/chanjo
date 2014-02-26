@@ -39,3 +39,9 @@ v0.5.0
 * UPDATE: New tests for new functions
 * UPDATE: New documentation covering new features/structure
 * UPDATE: Small updates to the command line interface
+
+v0.6.0
+--------------------
+* BREAKING: changes group_id field to string instead of int.
+* Exposes the threshold option to the CLI for optimizing BAM-file reading with
+  SAMTools, fixes #58
