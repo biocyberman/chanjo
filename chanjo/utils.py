@@ -2,8 +2,6 @@
 
 import sys
 
-import numpy as np
-
 
 def get_chromosomes(prepend='chr', custom=[]):
   """Generate a list of human chromosome (contig) IDs.

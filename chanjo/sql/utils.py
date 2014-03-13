@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import numpy as np
-
 
 def read_supersets(sorted_sets, superset_column='gene'):
   """Yields collections of sets for each superset in the input. Expects the
@@ -41,12 +39,12 @@ def parse_raw_intervals(str_list):
   :rtype: int, int
   """
   # Remove the "[]"
-  csv_intervals = str_list[1:-1].replace(b' ', b'')
+  csv_intervals = str_list[1:-1].replace(' ', '')
 
   # 1. Split first into exons coordinates
   # 2. Split into start, end and parse int
-  intervals = [[int(pos) for pos in item.split(b'-')]
-               for item in csv_intervals.split(b',')]
+  intervals = [[int(pos) for pos in item.split('-')]
+               for item in csv_intervals.split(',')]
 
   # 3. Correct coords to 0,0-based Pythonic standard
   for interval in intervals:
@@ -57,7 +55,7 @@ def parse_raw_intervals(str_list):
 
 
 def assemble_interval(raw_set, raw_interval):
-  contig_id = raw_set['chromosome'].decode('utf-8')
+  contig_id = raw_set['chromosome']
 
   return (
     '{}-{}-{}'.format(contig_id, *raw_interval),
@@ -69,11 +67,11 @@ def assemble_interval(raw_set, raw_interval):
 
 
 def assemble_set(raw_set):
-  contig_id = raw_set['chromosome'].decode('utf-8')
-  set_id = raw_set['ccds_id'].decode('utf-8')
+  contig_id = raw_set['chromosome']
+  set_id = raw_set['ccds_id']
 
   # 20 supersets are present on both X/Y (this trickles down to sets)
-  if raw_set['chromosome'] == b'X' or raw_set['chromosome'] == b'Y':
+  if raw_set['chromosome'] == 'X' or raw_set['chromosome'] == 'Y':
     set_id = '{}-{}'.format(contig_id, set_id)
 
   set_data = (
@@ -99,11 +97,11 @@ def assemble_set(raw_set):
 def assemble_superset(raw_superset):
   first_set = raw_superset[0]
 
-  contig_id = first_set['chromosome'].decode('utf-8')
-  superset_id = first_set['gene'].decode('utf-8')
+  contig_id = first_set['chromosome']
+  superset_id = first_set['gene']
 
   # 20 supersets are present on both X/Y
-  if first_set['chromosome'] == b'X' or first_set['chromosome'] == b'Y':
+  if first_set['chromosome'] == 'X' or first_set['chromosome'] == 'Y':
     superset_id = '{}-{}'.format(contig_id, superset_id)
 
   superset = (

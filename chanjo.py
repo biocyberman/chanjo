@@ -111,10 +111,8 @@ def main(args):
   # | Peek at annotated coverage metrics for supersets/genes
   # +------------------------------------------------------------------+
   elif args['peek']:
-    superset_ids = [bytes(gene, 'utf-8') for gene in args['<gene>']]
-
     # Fetch the annotations from data store
-    _ = peek(store_path, superset_ids, sample_id, dialect)
+    _ = peek(store_path, args['<gene>'], sample_id, dialect)
 
   # +------------------------------------------------------------------+
   # | Annotate intervals in an interval store

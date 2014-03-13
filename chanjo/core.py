@@ -289,8 +289,7 @@ def peek(sql_path, superset_ids, sample_id=None, dialect='sqlite'):
   for result in query.all():
 
     # Write output to stdout
-    line = '\t'.join([result[0].decode(), result[1], str(result[2]),
-                      str(result[3])])
+    line = '\t'.join([result[0], result[1], str(result[2]), str(result[3])])
     sys.stdout.write(line + '\n')
 
   return 0
