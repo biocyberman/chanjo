@@ -59,7 +59,6 @@ import multiprocessing
 import sys
 
 from docopt import docopt
-from clint.arguments import Args
 from clint.textui import puts, colored
 from path import path
 
@@ -105,14 +104,8 @@ def main(args):
     start = int(args['<start>'])
     end = int(args['<end>'])
 
-    # Write header for tabular output
-    sys.stdout.write('#coverage\t#completeness\n')
-
     # Read and calculate coverage metrics
-    output = read_coverage(coverage_path, contig, start, end, cutoff)
-
-    # Write the output to stdout
-    sys.stdout.write((output['coverage'] + '\t' + output['completeness']))
+    _ = read_coverage(coverage_path, contig, start, end, cutoff)
 
   # +------------------------------------------------------------------+
   # | Peek at annotated coverage metrics for supersets/genes
@@ -135,8 +128,8 @@ def main(args):
     cores = int(args['--cores'] or multiprocessing.cpu_count())
 
     # Call main annotate function
-    annotate(sample_id, group_id, cutoff, coverage_path, store_path,
-             dialect, extension, prepend, bp_threshold)
+    _ = annotate(sample_id, group_id, cutoff, coverage_path, store_path,
+                 dialect, extension, prepend, bp_threshold)
 
   # +------------------------------------------------------------------+
   # | Import coverage annotations to an interval store
