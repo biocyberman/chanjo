@@ -250,7 +250,7 @@ def read_coverage(bam_path, contig_id, start, end, cutoff):
   coverage, completeness = calculate_values(read_depths, cutoff)
 
   # Write the output to stdout
-  sys.stdout.write((output['coverage'] + '\t' + output['completeness']))
+  sys.stdout.write('{0}\t{1}\n'.format(coverage, completeness))
 
   return 0
 
