@@ -55,6 +55,7 @@ from docopt import docopt
 import itertools
 import json
 import sys
+import os
 from path import path
 
 import chanjo
@@ -62,18 +63,25 @@ from chanjo import bam, sql, utils, rc
 
 
 def fileCheck(*fpaths, **kwargs):
-  """<public> Checks a path for an existing file before overwrite.
+  """
+  <public> Checks a path for an existing file before overwrite.
+  If the "force" option is active, existing files will be automatically
+  removed.
 
-  :param bool force: Whether to skip the actual checking (optional)
+  :param bool force: Whether to remove existing files (optional)
   """
   # Get optional "force" keyword argument
   force = kwargs.get('force', False)
 
   for fpath in fpaths:
     f = path(fpath)
-    if f.exists() and not force:
-      sys.exit("\033[93mWARNING: {path} already exists. Use '--force' to"
-               "overwrite.\033[0m".format(path=f))
+    if f.isfile():
+      if force:
+        # Remove the file (needed for replacing sqlite-file)
+        fpath.remove()
+      else:
+        sys.exit("\033[93mWARNING: {path} already exists. Use '--force' to"
+                 "overwrite.\033[0m".format(path=f))
 
 
 def import_(db, data):
@@ -202,11 +210,8 @@ def main(args):
     # relationships, no annotations. This is useful when you plan to run
     # Chanjo in parallel and need a reference database.
 
-    # Check path
-    fileCheck(store, force=force)
-
     # Build up a barebones database structure
-    db.quickBuild(ccds_path)
+    db.quickBuild(ccds_path, wipe=force)
 
   elif args['import']:
     # Import one text-file at a time

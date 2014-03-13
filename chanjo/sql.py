@@ -203,17 +203,21 @@ class ElementAdapter(ElementalDB):
       "sample": Sample
     })
 
-  def quickBuild(self, ccdsPath):
+  def quickBuild(self, ccds_path, wipe=False):
     """
-    <public> Builds a new database instance with barebones structure and relationships,
-    no annotations. This is useful when you plan to run Chanjo in parallel and
-    need a reference database.
+    <public> Builds a new database instance with barebones structure and
+    relationships, no annotations. This is useful when you plan to run Chanjo
+    in parallel and need a reference database.
+
+    :param str ccds_path: Path to CCDS database dump (tsv)
+    :param bool wipe: Whether to wipe element records before rebuilding an
+                      existing database. Won't give error for a new database.
     """
     # Parse the provided CCDS database dump
     parser = ccds.CCDSAdapter()
 
     # Parse information from the CCDS txt-file
-    genes, txs, exons = parser.connect(ccdsPath).parse()
+    genes, txs, exons = parser.connect(ccds_path).parse()
 
     # 1. Setup the new database with tables etc.
     # 2. Import elements into the database by converting to ORM objects
