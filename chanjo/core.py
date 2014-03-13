@@ -5,7 +5,6 @@ import json
 import sys
 import csv
 
-from joblib import Parallel, delayed
 from path import path
 
 from .bam import CoverageAdapter

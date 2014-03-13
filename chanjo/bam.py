@@ -39,7 +39,7 @@ class CoverageAdapter(Samfile):
   """
 
   def __init__(self, bam_path):
-    super().__init__()
+    super(CoverageAdapter, self).__init__()
 
     # Raise an error if the file doesn't exist
     if not path(bam_path).exists():

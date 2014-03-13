@@ -46,7 +46,7 @@ class ElementAdapter(object):
   :param bool debug: Whether to print logging information (optional)
   """
   def __init__(self, path, dialect='sqlite', debug=False):
-    super().__init__()
+    super(ElementAdapter, self).__init__()
     # Save store pointer
     self.path = path
 
