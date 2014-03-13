@@ -18,6 +18,24 @@ from .utils import (get_chromosomes, get_intervals, group_intervals,
 
 def annotate(sample_id, group_id, cutoff, bam_path, sql_path, dialect,
              extension, prepend, bp_threshold):
+  """Automates an internal pipeline for annotating all intervals from a SQL
+  database. Writes both metadata (header) and tabular data for each interval
+  with calculated coverage and completeness.
+
+  Args:
+    sample_id (str): Unique ID for a given sample
+    group_id (str): Unique ID for a given group of samples (e.g. family)
+    cutoff (int): Threshold to use for completeness calculation
+    bam_path (str): Path to BAM-file
+    sql_path (str): Path to existing ('built') SQL database
+    dialect (str): SQL database dialect (+ optionally Python adapter to use)
+    extension (int): Number of bases to extend each interval with (+/-)
+    prepend (str): Rename each contig by prepending this string
+    bp_threshold (int): Optimization number for reading BAM-file in chunks
+
+  Returns:
+    int: Exit code
+  """
   # Write metadata to output header
   header = {
     'sample_id': sample_id,
@@ -54,6 +72,8 @@ def annotate(sample_id, group_id, cutoff, bam_path, sql_path, dialect,
   for contig_id, contig_group in contigs_and_groups:
     for group in contig_group:
       annotate_inverval_group(coverage, contig_id, group, cutoff)
+
+  return 0
 
 
 def import_data(sql_path, input_stream, dialect):
@@ -202,6 +222,7 @@ def build(sql_path, ccds_path, dialect, force=False):
 
 def read_coverage(bam_path, contig_id, start, end, cutoff):
   """Takes a genomic interval and calculates coverage and completeness metrics.
+  Writes results to ``sys.stdout``; coverage and completeness.
 
   Args:
     bam_path (str): Path to the coverage source BAM-file
@@ -211,7 +232,7 @@ def read_coverage(bam_path, contig_id, start, end, cutoff):
     cutoff (int): Lower threshold for completeness calculation
 
   Returns:
-    dict: Coverage and completeness (ready for json dumping)
+    int: Exit code
   """
   try:
     # Connect to the coverage source (BAM-file)
@@ -219,23 +240,24 @@ def read_coverage(bam_path, contig_id, start, end, cutoff):
   except OSError:
     sys.exit("The file doesn't exist: {}".format(bam_path))
 
+  # Write header for tabular output
+  sys.stdout.write('#coverage\t#completeness\n')
+
   # Read read depths from the coverage source
   read_depths = coverage_source.read(contig_id, start, end)
 
   # Calculate mean coverage and completeness for the interval
   coverage, completeness = calculate_values(read_depths, cutoff)
 
-  # Prepare the output
-  output = {
-    'coverage': coverage,
-    'completeness': completeness
-  }
+  # Write the output to stdout
+  sys.stdout.write((output['coverage'] + '\t' + output['completeness']))
 
-  return output
+  return 0
 
 
 def peek(sql_path, superset_ids, sample_id=None, dialect='sqlite'):
-  """Get a peak at some of the annotations (supersets) in a database.
+  """Get a peak at some of the annotations (supersets) in a database. Writes
+  output to ``sys.stdout`` (one line per sample and superset).
 
   Args:
     sql_path (str): Path to the SQL database
@@ -243,8 +265,7 @@ def peek(sql_path, superset_ids, sample_id=None, dialect='sqlite'):
     sample_id (str, optional): Limit results to a single sample
 
   Returns:
-    dict: Coverage and completeness by superset and sample (ready for
-        json dumping)
+    int: Exit code
   """
   # Connect to intervals store
   db = ElementAdapter(sql_path, dialect=dialect)
