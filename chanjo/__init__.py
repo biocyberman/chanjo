@@ -7,6 +7,10 @@
 # \___/ /_/ /_/\__,_/ /_/ /_/___  /  \____/
 #                            /___/
 
+from __future__ import unicode_literals
+from __future__ import division
+from __future__ import absolute_import
+
 __title__ = 'chanjo'
 __version__ = '0.5.4'
 __author__ = 'Robin Andeer'
