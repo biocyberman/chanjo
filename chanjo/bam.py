@@ -1,26 +1,29 @@
-#!/usr/bin/env python
-# coding: utf-8
+# -*- coding: utf-8 -*-
+
 """
-  chanjo.bam
-  ~~~~~~~~~~~~~
+chanjo.bam
+~~~~~~~~~~~
 
-  The default :class:`CoverageAdapter` that ships with Chanjo. Talks directly
-  to a BAM alignment file to extract read depth data.
+The default :class:`CoverageAdapter` that ships with Chanjo. Talks directly
+to a BAM alignment file to extract read depth data.
 
-  Depends on the Pysam_ package and requires Samtools_ to be installed in your
-  ``$PATH`` to work.
+Depends on the Pysam_ package and requires Samtools_ to be installed in your
+``$PATH`` to work. N.B. by installing *Pysam* through *pip*, *Samtools* will
+by installed alongside.
 
-  :copyright: (c) 2013 by Robin Andeer
-  :license: MIT, see LICENSE for more details
+:copyright: (c) 2013 by Robin Andeer
+:license: MIT, see LICENSE for more details
 
-  .. _Pysam: http://www.cgat.org/~andreas/documentation/pysam/contents.html
-  .. _Samtools: http://samtools.sourceforge.net/
+.. _Pysam: http://www.cgat.org/~andreas/documentation/pysam/contents.html
+.. _Samtools: http://samtools.sourceforge.net/
 """
-import pysam
+
 import numpy as np
+from path import path
+from pysam import Samfile
 
 
-class CoverageAdapter(pysam.Samfile):
+class CoverageAdapter(Samfile):
   """
   Adapter for interfacing directly with BAM alignment files. Inherits from
   :class:`Samfile` which requires a second init parameter that tells it to
@@ -36,9 +39,13 @@ class CoverageAdapter(pysam.Samfile):
   """
 
   def __init__(self, bam_path):
-    super(CoverageAdapter, self).__init__(bam_path, "rb")
+    super().__init__()
 
-  def read(self, chrom, start, end):
+    # Raise an error if the file doesn't exist
+    if not path(bam_path).exists():
+      raise OSError(errno.ENOENT, bam_path)
+
+  def read(self, contig_id, start, end):
     """
     <public> Generates a list of read depths for each position between
     (start, end). The `numpy` array is used to optimize performance when
@@ -57,18 +64,19 @@ class CoverageAdapter(pysam.Samfile):
       Positions are 0,0-based throughout `Chanjo`. If start=0, end=9 you should
       expect the 10 read depths for position 1-10 to be returned.
 
-    :param str chrom: The chromosome ID (str) of interest
+    :param str contig_id: The contig/chromosome ID (str) of interest
     :param int start: The first position of the interval (0-based)
     :param int end: The last position of the interval (0-based)
     :returns: A numpy array of read depths for *each* position in the interval
+    :rtype: numpy.array
     """
     # Generate a list of 0 read depth for each position
-    positions = np.zeros(end+1-start)
+    positions = np.zeros(end + 1 - start)
 
     # Start Pileup iterator and walk through each position in the interval
     # `truncate` will make sure it starts and ends on the given positions!
     # +1 to end because pysam otherwise stops one base short by default
-    for col in self.pileup(str(chrom), start, end+1, truncate=True):
+    for col in self.pileup(str(contig_id), start, end + 1, truncate=True):
 
       # Overwrite the read depth in the correct position
       # This will allow simple slicing to get at the positions of interest
