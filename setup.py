@@ -47,10 +47,11 @@ setup(
     'Programming Language :: Python :: 3.3',
     'Topic :: Scientific/Engineering :: Bio-Informatics'
   ],
+  zip_safe=False,
 
   # Executable command line utilities
   scripts=[
-    'chanjo.py'
+    'scripts/chanjo'
   ],
 
   # Runtime dependencies
