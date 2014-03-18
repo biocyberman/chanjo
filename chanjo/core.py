@@ -5,6 +5,7 @@ import json
 import sys
 import csv
 
+from clint.textui import puts, colored
 from path import path
 from sqlalchemy.exc import IntegrityError
 
@@ -78,6 +79,14 @@ def annotate(sample_id, group_id, cutoff, bam_path, sql_path, dialect,
 
 def import_data(sql_path, input_stream, dialect):
   """Import output from 'annotate' sub-command.
+
+  Args:
+    sql_path (str): Path to the database or MySQL connection string
+    input_stream (file): File handle (file or stdin)
+    dialect (str): SQL database type (sqlite or mysql+<connector>)
+
+  Returns:
+    bool: True if successful
   """
   db = ElementAdapter(sql_path, dialect=dialect)
 
@@ -130,7 +139,7 @@ def import_json(sql_path, input_stream, dialect):
     cutoff=dump['cutoff'],
     extension=extension,
     coverage_source=dump['source'],
-    element_source='unknown'
+    element_source=None
   ))
 
   # For each of the annotations (intervals)
@@ -141,7 +150,11 @@ def import_json(sql_path, input_stream, dialect):
     completeness=annotation[1],
     sample_id=sample_id,
     group_id=group_id
-  ) for annotation in annotations]).commit()
+  ) for annotation in annotations])
+
+  # Commit sample and intervals before proceeding
+  # We do this in part to leverage subsequent SQL queries.
+  db.commit()
 
   # Extend annotations to sets and supersets
   return extend_annotations(db, sample_id, group_id)
@@ -211,14 +224,17 @@ def build(sql_path, ccds_path, dialect, force=False):
   db = ElementAdapter(sql_path, dialect=dialect)
 
   # Check if the database already exists (expect 'mysql' to exist)
-  if dialect == 'mysql' or path(sql_path).exists():
+  # 'dialect' is in the form of '<db_type>+<connector>'
+  if dialect.startswith('mysql') or path(sql_path).exists():
     if force:
       # Wipe the database clean
+      puts(colored.blue('[chanjo]') + ' ' + colored.red('Wiping database...'))
       db.tare_down()
     elif dialect == 'sqlite':
       # Prevent from wiping existing database to easily
       raise OSError(errno.EEXIST, sql_path)
 
+  puts(colored.blue('[chanjo]') + ' ' + colored.green('Building database...'))
   # Set up new tables
   db.setup()
 
@@ -226,9 +242,9 @@ def build(sql_path, ccds_path, dialect, force=False):
     # Start the import
     _ = import_from_ccds(db, ccds_path)
   except IntegrityError:
-    print("Database was already set up! Please use '--force' to overide"
-          "this error")
-    return -1
+    puts("Database was already set up! Please use '--force' to overide "
+         "this error")
+    return False
 
   return True
 

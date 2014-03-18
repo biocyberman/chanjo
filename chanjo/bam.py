@@ -35,7 +35,8 @@ class CoverageAdapter(Samfile):
     >>> bam_path = "/path/to/bam/file.bam"
     >>> adapter = CoverageAdapter(bam_path)
 
-  :param str bam_path: Path to a BAM alignment file
+  Args:
+    bam_path (str): Path to a BAM alignment file
   """
 
   def __init__(self, bam_path):
@@ -46,10 +47,9 @@ class CoverageAdapter(Samfile):
       raise OSError(errno.ENOENT, bam_path)
 
   def read(self, contig_id, start, end):
-    """
-    <public> Generates a list of read depths for each position between
-    (start, end). The `numpy` array is used to optimize performance when
-    building and slicing the list.
+    """Generates a list of read depths for each position between (start, end).
+    The `numpy` array is used to optimize performance when building and
+    slicing the list.
 
     This method depends on `Pysam` >=0.7.5 since using the `truncate` which
     wasn't working in previous versions.
@@ -64,11 +64,13 @@ class CoverageAdapter(Samfile):
       Positions are 0,0-based throughout `Chanjo`. If start=0, end=9 you should
       expect the 10 read depths for position 1-10 to be returned.
 
-    :param str contig_id: The contig/chromosome ID (str) of interest
-    :param int start: The first position of the interval (0-based)
-    :param int end: The last position of the interval (0-based)
-    :returns: A numpy array of read depths for *each* position in the interval
-    :rtype: numpy.array
+    Args:
+      contig_id (str): The contig/chromosome ID (str) of interest
+      start (int): The first position of the interval (0-based)
+      end (int): The last position of the interval (0-based)
+
+    Returns:
+      numpy.array: Array of read depths for *each* position in the interval
     """
     # Generate a list of 0 read depth for each position
     positions = np.zeros(end + 1 - start)

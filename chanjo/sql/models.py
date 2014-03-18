@@ -7,8 +7,8 @@ chanjo.sql.models
 
 from datetime import datetime
 
-from sqlalchemy import (Table, Column, ForeignKey, String, Integer, DateTime,
-                        Float, Boolean)
+from sqlalchemy import Table, Column, ForeignKey, String, Integer, DateTime
+from sqlalchemy import Text, Float, Boolean
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -179,8 +179,8 @@ class Sample(Base):
 
   cutoff = Column(Integer)
   extension = Column(Integer)
-  coverage_source = Column(String(32))
-  element_source = Column(String(32))
+  coverage_source = Column(Text)
+  element_source = Column(Text)
   created_at = Column(DateTime, default=datetime.now)
   updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 

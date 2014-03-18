@@ -93,7 +93,7 @@ def main(args):
   dialect = args['--dialect']
   sample_id = args['--sample']
   group_id = args['--group']
-  FORCE = args['--force']
+  force = args['--force']
   cutoff = int(args['--cutoff'])
 
   # +------------------------------------------------------------------+
@@ -148,10 +148,11 @@ def main(args):
   # +------------------------------------------------------------------+
   elif args['build']:
     # Read CCDS reference file and import to a fresh SQL datastore
-    _ = build(store_path, args['<reference>'], dialect, FORCE)
+    success = build(store_path, args['<reference>'], dialect, force=force)
 
-    puts(colored.blue('[chanjo]') + 'Built database: '
-         + colored.green(store_path))
+    if success:
+      puts(colored.blue('[chanjo]') + ' Built database: ' +
+           colored.green(store_path))
 
 
 if __name__ == '__main__':

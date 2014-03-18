@@ -184,9 +184,4 @@ def parse_raw_intervals(str_list):
   intervals = [[int(pos) for pos in item.split('-')]
                for item in csv_intervals.split(',')]
 
-  # 3. Correct coords to 0,0-based Pythonic standard
-  for interval in intervals:
-    interval[0] -= 1
-    interval[1] -= 1
-
   return intervals
