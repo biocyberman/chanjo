@@ -122,6 +122,16 @@ class ElementAdapter(object):
     # Return the requested element object (or ``None``) if not found
     return self.session.query(klass).get(type_id)
 
+  def get_or_create(self, typ, type_id, *args):
+    # First try to fetch an existing record
+    record = self.get(typ, type_id)
+
+    if record is None:
+      record = self.create(typ, *args)
+      self.add(record)
+
+    return record
+
   def find(self, klass_id, query=None, attrs=None):
     """<public> If the 'query' parameter is a string `find` will fetch one
     element; just like `get`. If query is a list it will match element IDs to

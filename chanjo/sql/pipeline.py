@@ -1,85 +1,94 @@
 # -*- coding: utf-8 -*-
 
+import itertools
 import numpy as np
 
-from .core import ElementAdapter
-from .utils import read_supersets, assemble_superset
+from .utils import load_ccds, filter_by_column, sort_by_columns
+from .utils import process_superset
 
 
 # +--------------------------------------------------------------------+
-# | Import pipeline
+# | Importer pipeline
 # +--------------------------------------------------------------------+
 def import_from_ccds(db, ccds_path):
-  # Set up column names and types (otherwise we get bytes in Python 3)
-  columns = [('chromosome', '<U12'), ('nc_accession', '<U12'),
-             ('gene', '<U24'), ('gene_id', int), ('ccds_id', '<U12'),
-             ('ccds_status', '<U12'), ('cds_strand', '<U12'),
-             ('cds_from', int), ('cds_to', int), ('cds_locations', '<U7700'),
-             ('match_type', '<U12')]
-  # Dump the file into memory
-  all_sets = np.genfromtxt(ccds_path, delimiter='\t', dtype=columns)
+  # Build up the new schema
+  db.setup()
 
-  # Filter out all non-Y records
-  non_y = all_sets[all_sets['chromosome'] != 'Y']
-  all_y = all_sets[all_sets['chromosome'] == 'Y']
+  # Read in the entire CCDS database to a ``numpy.array``
+  all_sets = load_ccds(ccds_path)
 
-  for full_set in [non_y, all_y]:
+  # Filter by 'ccds_status' (we only care for 'Public' transcripts)
+  public_sets = filter_by_column(all_sets, 'ccds_status', 'Public')
 
-    # Filter by status code
-    public_sets = full_set[full_set['ccds_status'] == 'Public']
+  # Sort the transcripts by gene (HGNC symbol) and chromosome to prepare
+  # for grouping by gene.
+  # We need sorting on 'chromosome' to make sure XY-genes are separated by
+  # chromosome and don't get mixed up with each other.
+  sorted_sets = sort_by_columns(public_sets, ('gene', 'chromosome'))
 
-    # Sort by HGNC symbol
-    sorted_sets = public_sets[public_sets['gene'].argsort()]
+  # Group rows by gene/superset
+  raw_supersets = itertools.groupby(sorted_sets, lambda x: x['gene'])
 
-    # Yield each gene
-    raw_supersets = read_supersets(sorted_sets)
+  # Extract and work on each of the groups of set/transcript rows
+  processed_supersets = (process_superset(raw_superset)
+                         for _, raw_superset in raw_supersets)
 
-    # Process each superset
-    supersets = map(assemble_superset, raw_supersets)
+  # Store added intervals to avoid having to 'get_or_create' every time
+  added_intervals = {}
+  # Count how many superset we have processed and added
+  count = 1
+  # Work through all supersets etc.
+  for superset_data, sets_and_intervals in processed_supersets:
+    # Create a new superset and add it to the session
+    new_superset = db.create('superset', *superset_data)
+    db.add(new_superset)
 
-    count = 0
-    added_intervals = {}
-    added_sets = {}
-    for superset_data, sets in supersets:
-      new_superset = db.create('superset', *superset_data)
+    # Work through the sets in the superset
+    for set_data, intervals in sets_and_intervals:
+      # Create a new set
+      new_set = db.create('set', *set_data)
+      # Add the parent superset to the new set
+      new_set.superset = new_superset
+      # Add the new set to the session
+      db.add(new_set)
 
-      for set_data, intervals, interval_sets in sets:
-        if set_data[0] not in added_sets:
-          added_sets[set_data[0]] = True
-          new_set = db.create('set', *set_data)
-        else:
-          print(set_data)
+      # Keep track of which interval is the first in the set
+      first_interval = True
+      # Work through each interval
+      for interval_data in intervals:
+        # Skip if we already processed+added this interval
+        if interval_data[0] not in added_intervals:
+          # Create new interval
+          new_interval = db.create('interval', *interval_data)
+          # Add the parent set to the interval => this also created the
+          # intermediary 'interval__set' records
+          new_interval.sets.append(new_set)
 
-        first_interval = True
-        for interval_data in intervals:
-          if interval_data not in added_intervals:
-            added_intervals[interval_data] = True
-            new_interval = db.create('interval', *interval_data)
-            new_set.intervals.append(new_interval)
+          # Mark each first interval as 'first'
+          if first_interval:
+            # First interval is first
+            new_interval.first = True
 
-            if first_interval:
-              # First interval is first
-              new_interval.first = True
-              # ... and no other intervals
-              first_interval = False
+          # Add new interval to the session
+          db.add(new_interval)
 
-            db.add(new_interval)
+          # Add new interval as 'added'
+          added_intervals[interval_data[0]] = True
 
-        # Last interval is last
-        new_interval.last = True
+        # Turn off 'first_interval' flag
+        first_interval = False
 
-        db.add(new_set)
+      # Last interval is last
+      new_interval.last = True
 
-      db.add(new_superset)
+    # Commit the session every 3000 supersets
+    if count % 3000 == 0:
+      db.commit()
 
-      if count == 5000:
-        db.commit()
-        count = 0
+    # Count each superset added
+    count += 1
 
-      else:
-        count += 1
+  # Commit the remaining supersets
+  db.commit()
 
-    # Commit remaining entries
-    db.commit()
-
-    return 0
+  return 0

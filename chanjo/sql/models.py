@@ -89,7 +89,7 @@ class Set(Base):
   superset_id = Column(String(32), ForeignKey('superset.id'))
   supersets = relationship(Superset, backref=backref('sets', order_by=start))
 
-  def __init__(self, set_id, contig_id, start, end, strand, superset_id):
+  def __init__(self, set_id, contig_id, start, end, strand, superset_id=None):
     super(Set, self).__init__()
 
     self.id = set_id
