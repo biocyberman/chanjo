@@ -11,9 +11,6 @@ from .utils import process_superset
 # | Importer pipeline
 # +--------------------------------------------------------------------+
 def import_from_ccds(db, ccds_path):
-  # Build up the new schema
-  db.setup()
-
   # Read in the entire CCDS database to a ``numpy.array``
   all_sets = load_ccds(ccds_path)
 

@@ -6,6 +6,7 @@ import sys
 import csv
 
 from path import path
+from sqlalchemy.exc import IntegrityError
 
 from .bam import CoverageAdapter
 from .sql.core import ElementAdapter
@@ -201,20 +202,25 @@ def build(sql_path, ccds_path, dialect, force=False):
   # Connect to the database
   db = ElementAdapter(sql_path, dialect=dialect)
 
-  # Check if the database already exists
-  if path(sql_path).exists():
+  # Check if the database already exists (expect 'mysql' to exist)
+  if dialect == 'mysql' or path(sql_path).exists():
     if force:
       # Wipe the database clean
       db.tare_down()
-    else:
+    elif dialect == 'sqlite':
       # Prevent from wiping existing database to easily
       raise OSError(errno.EEXIST, sql_path)
 
   # Set up new tables
   db.setup()
 
-  # Start the import
-  _ = import_from_ccds(db, ccds_path)
+  try:
+    # Start the import
+    _ = import_from_ccds(db, ccds_path)
+  except IntegrityError:
+    print("Database was already set up! Please use '--force' to overide"
+          "this error")
+    return -1
 
   return True
 
