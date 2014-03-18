@@ -151,7 +151,7 @@ def convert_old_interval_id(old_id):
   # Split into parts (contig, start, end)
   parts = old_id.split('-')
   # Recombine but with converted coordinates from 0:0 to 1:1
-  return '-'.join([parts[0], str(parts[1] + 1), str(parts[2] + 1)])
+  return '-'.join([parts[0], str(int(parts[1]) + 1), str(int(parts[2]) + 1)])
 
 
 def extend_annotations(db, sample_id, group_id):
