@@ -13,8 +13,8 @@ from .bam import CoverageAdapter
 from .sql.core import ElementAdapter
 from .sql.models import Base, Sample, SupersetData
 from .sql.pipeline import import_from_ccds
-from .utils import (get_chromosomes, get_intervals, group_intervals,
-                    annotate_inverval_group, calculate_values)
+from .utils import get_chromosomes, get_intervals, group_intervals
+from .utils import annotate_inverval_group, calculate_values
 
 
 def annotate(sample_id, group_id, cutoff, bam_path, sql_path, dialect,
@@ -132,7 +132,7 @@ def import_json(sql_path, input_stream, dialect):
     extension = 0
 
   # Add a Sample entry with metadata
-  db.add(db.create(
+  sample = db.create(
     'sample',
     sample_id=sample_id,
     group_id=str(group_id),
@@ -140,19 +140,27 @@ def import_json(sql_path, input_stream, dialect):
     extension=extension,
     coverage_source=dump['source'],
     element_source=None
-  ))
+  )
+  db.add(sample).commit()
 
   # For each of the annotations (intervals)
-  db.add([db.create(
-    'interval_data',
-    parent_id=convert_old_interval_id(annotation[2]),
-    coverage=annotation[0],
-    completeness=annotation[1],
-    sample_id=sample_id,
-    group_id=group_id
-  ) for annotation in annotations])
+  # We need to catch cases with deprecated intervals
+  for annotation in annotations:
+    try:
+      interval_data = db.create(
+        'interval_data',
+        parent_id=convert_old_interval_id(annotation[2]),
+        coverage=annotation[0],
+        completeness=annotation[1],
+        sample_id=sample_id,
+        group_id=group_id
+      )
+      db.add(interval_data)
+    except IntegrityError:
+      # Just skip data records without matching parent => expect 'Withdrawn'
+      continue
 
-  # Commit sample and intervals before proceeding
+  # Commit intervals before proceeding
   # We do this in part to leverage subsequent SQL queries.
   db.commit()
 
