@@ -141,24 +141,20 @@ def import_json(sql_path, input_stream, dialect):
     coverage_source=dump['source'],
     element_source=None
   )
-  db.add(sample).commit()
+  db.add(sample)
 
   # For each of the annotations (intervals)
-  # We need to catch cases with deprecated intervals
   for annotation in annotations:
-    try:
-      interval_data = db.create(
-        'interval_data',
-        parent_id=convert_old_interval_id(annotation[2]),
-        coverage=annotation[0],
-        completeness=annotation[1],
-        sample_id=sample_id,
-        group_id=group_id
-      )
-      db.add(interval_data)
-    except IntegrityError:
-      # Just skip data records without matching parent => expect 'Withdrawn'
-      continue
+    interval_data = db.create(
+      'interval_data',
+      parent_id=convert_old_interval_id(annotation[2]),
+      coverage=annotation[0],
+      completeness=annotation[1],
+      sample_id=None,
+      group_id=group_id
+    )
+    interval_data.sample = sample
+    db.add(interval_data)
 
   # Commit intervals before proceeding
   # We do this in part to leverage subsequent SQL queries.
