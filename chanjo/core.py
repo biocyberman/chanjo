@@ -136,7 +136,7 @@ def import_json(sql_path, input_stream, dialect):
   # For each of the annotations (intervals)
   db.add([db.create(
     'interval_data',
-    parent_id=annotation[2],
+    parent_id=convert_old_interval_id(annotation[2]),
     coverage=annotation[0],
     completeness=annotation[1],
     sample_id=sample_id,
@@ -145,6 +145,14 @@ def import_json(sql_path, input_stream, dialect):
 
   # Extend annotations to sets and supersets
   return extend_annotations(db, sample_id, group_id)
+
+
+def convert_old_interval_id(old_id):
+  # Split into parts (contig, start, end)
+  parts = old_id.split('-')
+  # Recombine but with converted coordinates from 0:0 to 1:1
+  return '{contig}-{start}-{end}'\
+         .format(contig=parts[0], start=parts[1] + 1, end=parts[2] + 1)
 
 
 def extend_annotations(db, sample_id, group_id):
