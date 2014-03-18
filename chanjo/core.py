@@ -129,7 +129,8 @@ def import_json(sql_path, input_stream, dialect):
     group_id=str(group_id),
     cutoff=dump['cutoff'],
     extension=extension,
-    coverage_source=dump['source']
+    coverage_source=dump['source'],
+    element_source='unknown'
   ))
 
   # For each of the annotations (intervals)
