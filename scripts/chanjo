@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""Chanjo - A clinical genomics coverage analysis tool
+"""Chanjo - Clinical genomics coverage analysis tool
 
 Usage:
   chanjo build <sql_db> [<reference>] [--dialect=STR] [--force]
@@ -20,17 +20,16 @@ Commands:
   build                Builds a new skeleton SQL interval store
   annotate             Annotate intervals in an existing database
   import               Import coverage annotations to an existing database
-  read                 'Manually' read and calculate coverage for an interval
-                       in a BAM-file
+  read                 Read and calculate coverage directly from a BAM-file
   peek                 Peek at annotated coverage metrics for supersets/genes
 
 Arguments:
-  <sql_db>             New or existing SQL database (path or URI)
-  <bam_file>           Path to coverage source BAM-file e.g. './snap/align.bam'
-  <reference>          Path to intervals reference dump e.g. CCDS database
+  <sql_db>             Path to new or existing SQL database (path or URI)
+  <bam_file>           Path to 'coverage source' BAM-file ('./snap/align.bam')
+  <reference>          Path to intervals reference dump (CCDS database)
   <gene>               List of HGNC gene symbols
-  <annotate_output>    Output file from 'annotate' command (or stdin)
-  <contig>             Contig (chromosome) ID e.g. chr2
+  <annotate_output>    Output-file from 'annotate' command (or stdin)
+  <contig>             Contig (chromosome) ID e.g. 'chr2'
   <start>              Starting interval position (1-based)
   <end>                Ending interval position (1-based)
 
@@ -41,9 +40,8 @@ Options:
   -d --dialect=STR     Type of database: sqlite/mysql/BED [default: sqlite]
   -e --extend-by=INT   Extend intervals to include e.g. splice sites, +/- 2 bp
                        [default: 0]
-  -s --sample=STR      Sample ID e.g. '0-0-0U' [default: default]
+  -s --sample=STR      Sample ID e.g. '0-0-0U' (or set automatically)
   -g --group=STR       Group ID e.g. to group samples in trios
-                       [default: default]
   -t --threshold=INT   Base pair threshold for optimizing BAM-file reading
                        [default: 17000]
   -o --cores=INT       The maximum number of CPU cores to use
@@ -63,25 +61,8 @@ from clint.textui import puts, colored
 from path import path
 
 import chanjo
-from chanjo.core import (annotate, build, import_data, import_json,
-                         read_coverage, peek)
-
-
-def open_or_stdin(file_path):
-  """Opens a potential file or returns 'sys.stdin'
-
-  Args:
-    file_path (str): Path to potential file
-
-  Returns:
-    file: File handle for either the file or ``sys.stdin``
-  """
-  # Can't initialize ``path`` with ``None`` => point to non-existant path
-  file_path = path(file_path or '__nonexistant')
-  if file_path.isfile():
-    return file_path.open('r')
-  else:
-    return sys.stdin
+from chanjo.core import annotate, build, import_data, import_json
+from chanjo.core import read_coverage, peek, id_generator, open_or_stdin
 
 
 def main(args):
@@ -91,36 +72,51 @@ def main(args):
   store_path = args['<sql_db>']
   coverage_path = args['<bam_file>']
   dialect = args['--dialect']
-  sample_id = args['--sample']
+  # Load user defined sample Id or generate one randomly
+  sample_id = args['--sample'] or id_generator()
   group_id = args['--group']
   force = args['--force']
-  cutoff = int(args['--cutoff'])
+
+  try:
+    cutoff = int(args['--cutoff'])
+  except ValueError, e:
+    # Cutoff must be an integer!
+    raise e
 
   # +------------------------------------------------------------------+
   # | Read an interval from a coverage source file (BAM)
   # +------------------------------------------------------------------+
   if args['read']:
-    contig = args['<contig>']
-    start = int(args['<start>'])
-    end = int(args['<end>'])
+    contig_id = args['<contig>']
+
+    try:
+      start = int(args['<start>'])
+      end = int(args['<end>'])
+    except ValueError, e:
+      # Start and end must be integers!
+      raise e
 
     # Read and calculate coverage metrics
-    _ = read_coverage(coverage_path, contig, start, end, cutoff)
+    _ = read_coverage(coverage_path, contig_id, start, end, cutoff)
 
   # +------------------------------------------------------------------+
   # | Peek at annotated coverage metrics for supersets/genes
   # +------------------------------------------------------------------+
   elif args['peek']:
-    # Fetch the annotations from data store
+    # Fetch the annotations from a data store, SQL database
     _ = peek(store_path, args['<gene>'], sample_id, dialect)
 
   # +------------------------------------------------------------------+
   # | Annotate intervals in an interval store
   # +------------------------------------------------------------------+
   elif args['annotate']:
-    extension = int(args['--extend-by'])
-    bp_threshold = int(args['--threshold'])
-    prepend = args['--contig-prepend']
+    try:
+      extension = int(args['--extend-by'])
+      bp_threshold = int(args['--threshold'])
+      prepend = args['--contig-prepend']
+    except ValueError, e:
+      # Extension and bp threshold must be integers
+      raise e
 
     # Use user defined number of cores or all that are available
     cores = int(args['--cores'] or multiprocessing.cpu_count())

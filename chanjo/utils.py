@@ -1,6 +1,51 @@
 # -*- coding: utf-8 -*-
 
 import sys
+import string
+import random
+
+from path import path
+
+
+def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
+  """Randomly generate an Id of length N (size).
+
+  Ref: http://stackoverflow.com/questions/2257441
+
+  Usage:
+
+  .. code-block:: python
+
+    >>> id_generator()
+    'G5G74W'
+    >>> id_generator(3, "6793YUIO")
+    'Y3U'
+
+  Args:
+    size (int, optional): Length of Id, number of characters.
+    chars (str, optional): Pool of characters to choose from
+
+  Returns:
+    str: Randomly generated string
+  """
+  return ''.join(random.choice(chars) for _ in range(size))
+
+
+def open_or_stdin(file_path):
+  """Opens a potential file or returns 'sys.stdin'
+
+  Args:
+    file_path (str): Path to potential file
+
+  Returns:
+    file: File handle for either the file or ``sys.stdin``
+  """
+  # Can't initialize ``path`` with ``None`` => point to non-existant path
+  file_path = path(file_path or '__nonexistant')
+  if file_path.isfile():
+    return file_path.open('r')
+  else:
+    return sys.stdin
 
 
 def get_chromosomes(prepend='chr', custom=[]):
