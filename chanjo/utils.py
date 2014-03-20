@@ -1,4 +1,10 @@
 # -*- coding: utf-8 -*-
+"""
+chanjo.utils
+~~~~~~~~~~~~~
+
+Contains handy helper function used throughout Chanjo.
+"""
 
 import sys
 import string
@@ -42,6 +48,8 @@ def open_or_stdin(file_path):
   """
   # Can't initialize ``path`` with ``None`` => point to non-existant path
   file_path = path(file_path or '__nonexistant')
+
+  # Check if the file exists and return either it or stdin
   if file_path.isfile():
     return file_path.open('r')
   else:
@@ -222,12 +230,11 @@ def calculate_values(read_depths, threshold):
   return read_depths.mean(), calculate_completeness(read_depths, threshold)
 
 
-def annotate_inverval_group(coverage_source, contig_id, interval_group,
-                            cutoff):
+def annotate_inverval_group(bam_file, contig_id, interval_group, cutoff):
   """Annotates and prints information about each segment in an interval group.
 
   Args:
-    coverage_source (CoverageAdapter): Initialized
+    bam_file (CoverageAdapter): Initialized
       :class:`chanjo.bam.CoverageAdapter` instance
     contig_id (str): Contig (chromosome) ID for all groups
     interval_group (list): List of intervals
@@ -242,7 +249,7 @@ def annotate_inverval_group(coverage_source, contig_id, interval_group,
   overall_start, overall_end = merge_intervals(listed_interval_group)
 
   # Get read depths for the whole (full) group interval
-  read_depths = coverage_source.read(contig_id, overall_start, overall_end)
+  read_depths = bam_file.read(contig_id, overall_start, overall_end)
 
   # Loop through each of the intervals in the group
   for interval in listed_interval_group:

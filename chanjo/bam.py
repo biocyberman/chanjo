@@ -38,7 +38,6 @@ class CoverageAdapter(Samfile):
   Args:
     bam_path (str): Path to a BAM alignment file
   """
-
   def __init__(self, bam_path):
     super(CoverageAdapter, self).__init__()
 
@@ -51,21 +50,22 @@ class CoverageAdapter(Samfile):
     The `numpy` array is used to optimize performance when building and
     slicing the list.
 
-    This method depends on `Pysam` >=0.7.5 since using the `truncate` which
-    wasn't working in previous versions.
+    This method depends on `Pysam` >=0.7.5 since the `truncate` option wasn't
+    available in previous versions.
 
     .. code-block:: python
 
-      >>> adapter.read("17", 0, 5)
+      >>> adapter.read('17', 0, 5)
       array([3., 3., 4., 4., 5., 4.])
 
     .. note::
 
-      Positions are 0,0-based throughout `Chanjo`. If start=0, end=9 you should
-      expect the 10 read depths for position 1-10 to be returned.
+      Positions are expected to be 0:0-based. In other words; if start=0,
+      end=9 you should expect read depths for base pair positions 1-10 to
+      be returned.
 
     Args:
-      contig_id (str): The contig/chromosome ID (str) of interest
+      contig_id (str): The contig/chromosome Id (str) of interest
       start (int): The first position of the interval (0-based)
       end (int): The last position of the interval (0-based)
 

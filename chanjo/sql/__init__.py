@@ -3,3 +3,5 @@
 chanjo.sql
 ~~~~~~~~~~~
 """
+
+from .core import ElementAdapter

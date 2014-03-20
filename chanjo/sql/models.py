@@ -32,17 +32,17 @@ Interval_Set = Table('interval__set', Base.metadata,
 # | Superset ('gene') ORM
 # +--------------------------------------------------------------------+
 class Superset(Base):
-  """
-  The :class:`Superset` represents a collection of sets and potentially
-  overlapping intervals (gene). It can be related to multiple sets and
-  multiple intervals.
+  """The :class:`Superset` represents a collection of sets and potentially
+  overlapping intervals. It can be related to multiple sets and multiple
+  intervals.
 
-  :param str superset_id: E.g. HGNC gene symbol
-  :param str contig: Contig/Chromosome ID
-  :param int start: 0-based start of the gene (first interval)
-  :param int end: 0-based end of the gene (last interval, no UTR)
-  :param str strand: Strand +/-
-  :param str secondary_id: E.g. Entrez gene ID
+  Args:
+    superset_id (str): Unique superset Id e.g. HGNC gene symbol
+    contig (str): Contig/Chromosome Id
+    start (int): 1-based start of the superset (first interval)
+    end (int): 1-based end of the superset (last interval, no UTR)
+    strand (str): Strand +/-
+    secondary_id (str): E.g. Entrez gene Id
   """
   __tablename__ = 'superset'
 
@@ -68,15 +68,16 @@ class Superset(Base):
 # | Set ('transcript') ORM
 # +--------------------------------------------------------------------+
 class Set(Base):
-  """The :class:`Set` represents a set of non-overlapping intervals
-  (transcript). It can *only* be related to a single superset.
-
-  :param str set_id: Unique set ID (e.g. CCDS transcript ID)
-  :param str contig_id: Contig/Chromosome ID
-  :param int start: 0-based start of the transcript (first interval)
-  :param int end: 0-based end of the transcript (last interval, no UTR)
-  :param str strand: Strand +/-
-  :param str superset_id: E.g. HGNC gene symbol
+  """The :class:`Set` represents a set of non-overlapping intervals. It can
+  *only* be related to a single superset.
+  
+  Args:
+    set_id (str): Unique set Id (e.g. CCDS transcript Id)
+    contig_id (str): Contig/Chromosome Id
+    start (int): 1-based start of the set (first interval)
+    end (int): 1-based end of the set (last interval, no UTR)
+    strand (str): Strand +/-
+    superset_id (str): Related superset Id, e.g. HGNC gene symbol
   """
   __tablename__ = 'set'
 
@@ -100,8 +101,10 @@ class Set(Base):
     self.superset_id = superset_id
 
   def __len__(self):
-    """<magic> Returns the combined number of exon bases. Excludes intronic
-    bases.
+    """Returns the combined number of exon bases. Excludes intronic bases.
+
+    Returns:
+      int: Total 'intervalic' (exonic) length of the set
     """
     base_count = 0
     for interval in self.intervals:
@@ -117,14 +120,15 @@ class Interval(Base):
   """The :class:`Interval` represents a continous genetic interval on a given
   contig (e.g. exon).
 
-  It can be related to a multiple :class:`Set` (transcripts) and multiple
-  :class:`Superset` (genes). Start and end coordinates are 0-based.
+  It can be related to a multiple :class:`Set` (transcripts). Start and end
+  coordinates are 1-based.
 
-  :param str interval_id: Unique interval ID
-  :param str contig_id: Contig/Chromosome ID
-  :param int start: 0-based start of the interval
-  :param int end: 0-based end of the interval
-  :param str strand: Strand +/-
+  Args:
+    interval_id (str): Unique interval Id
+    contig_id (str): Contig/Chromosome Id
+    start (int): 1-based start of the interval
+    end (int): 1-based end of the interval
+    strand (str): Strand +/-
   """
   __tablename__ = 'interval'
 
@@ -150,10 +154,12 @@ class Interval(Base):
     self.strand = strand
 
   def __len__(self):
+    """<magic> Returns the number of bases.
+
+    Returns:
+      int: Length of interval in number of bases
     """
-    <magic> Returns the number of bases.
-    """
-    # We add +1 because we count positions and both coordinates are 0-based
+    # We add +1 because we count positions and both coordinates are 1-based
     return (self.end - self.start) + 1
 
 
@@ -166,11 +172,12 @@ class Sample(Base):
 
   .. versionadded:: 0.4.0
 
-  :param str sample_id: Unique sample ID
-  :param str group_id: Unique group ID
-  :param int cutoff: Cutoff used for completeness
-  :param bool extension: Number of bases added to each interval
-  :param str coverage_source: Path to the BAM file used
+  Args:
+    sample_id (str): Unique sample Id
+    group_id (str): Unique group Id
+    cutoff (int): Cutoff used for completeness
+    extension (bool): Number of bases added to each interval
+    coverage_source (str): Path to the BAM file used
   """
   __tablename__ = 'sample'
 
@@ -204,11 +211,12 @@ class IntervalData(Base):
   many-to-one relationship with it's parent interval object through it's
   ``parent_id`` attribute.
 
-  :param int parent_id: Parent record ID
-  :param str sample_id: Unique sample identifier
-  :param str group_id: Group identifier
-  :param float coverage: Average coverage for the exon
-  :param float completeness: Ratio of adequately covered bases
+  Args:
+    parent_id (int): Parent record ID
+    sample_id (str): Unique sample identifier
+    group_id (str): Group identifier
+    coverage (float): Average coverage for the exon
+    completeness (float): Ratio of adequately covered bases
   """
   __tablename__ = 'interval_data'
 
@@ -244,11 +252,12 @@ class SetData(Base):
   many-to-one relationship with it's parent set object through it's
   ``parent_id`` attribute.
 
-  :param int parent_id: Set ID
-  :param str sample_id: Unique sample identifier
-  :param str group_id: Group identifier
-  :param float coverage: Average coverage for the set
-  :param float completeness: Ratio of adequately covered bases
+  Args:
+    parent_id (int): Set ID
+    sample_id (str): Unique sample identifier
+    group_id (str): Group identifier
+    coverage (float): Average coverage for the set
+    completeness (float): Ratio of adequately covered bases
   """
   __tablename__ = 'set_data'
 
@@ -284,11 +293,12 @@ class SupersetData(Base):
   many-to-one relationship with it's parent superset object through it's
   ``parent_id`` attribute.
 
-  :param int parent_id: Superset ID
-  :param str sample_id: Unique sample identifier
-  :param str group_id: Group identifier
-  :param float coverage: Average coverage for the superset
-  :param float completeness: Ratio of adequately covered bases
+  Args:
+    parent_id (int): Superset ID
+    sample_id (str): Unique sample identifier
+    group_id (str): Group identifier
+    coverage (float): Average coverage for the superset
+    completeness (float): Ratio of adequately covered bases
   """
   __tablename__ = 'superset_data'
 

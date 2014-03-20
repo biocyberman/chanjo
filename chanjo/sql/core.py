@@ -3,7 +3,8 @@
 """
 chanjo.sql.core
 ~~~~~~~~~~~~~~~~~~
-The Central Database Class
+
+The Central Database/Element Adapter Class
 """
 
 from sqlalchemy import create_engine, func
@@ -14,9 +15,8 @@ from .models import (Base, Interval, Set, Superset, Interval_Set,
 
 
 class ElementAdapter(object):
-  """:class:`ElementalDB` collects functionality needed to setup and interact
-  with a SQLAlchemy session. This is likely the only element user will directly
-  interact with.
+  """SQLAlchemy-based :class:`ElementAdapter` for Chanjo. It collects
+  functionality needed to setup and interact with a SQLAlchemy session.
 
   .. code-block:: python
 
@@ -28,33 +28,23 @@ class ElementAdapter(object):
     For testing pourposes; use ":memory:" as the `path` argument to set up
     in-memory version of the database.
 
-  :param str path: Path to the database to connect to
-  :param bool debug: Whether to print logging information (optional)
-  :param str dialect: The type of database to connect to (optional)
--------------------------------------------------------------------------------
-  SQLAlchemy-based :class:`ElementAdapter` for Chanjo.
-
-  Inherits the basic SQL table structure from `ElementalDB`.
-
-  .. note::
-
-    For testing pourposes; use ":memory:" as the ``path`` parameter to set up
-    an in-memory instance of the database.
-
-  :param str path: Path to the database to connect to
-  :param str dialect: Type of database to use: 'sqlite' or 'mysql' (optional)
-  :param bool debug: Whether to print logging information (optional)
+  Args:
+    path (str): Path/URI to the database to connect to
+    dialect (str, optional): Connector + type of database: 'sqlite'/'mysql'
+    debug (bool, optional): Whether to print logging information
   """
   def __init__(self, path, dialect='sqlite', debug=False):
     super(ElementAdapter, self).__init__()
-    # Save store pointer
+    # Save path/URI pointer
     self.path = path
 
-    # Connect tose a database
+    # Connect to a database
     if dialect == 'sqlite':
       self.engine = create_engine('sqlite:///' + path, echo=debug)
+
     else:
-      # Build path containing username:password@server/database
+      # Build path containing
+      # <connector>+<db_type>://<username>:<password>@<server_url>/<database>
       auth_path = '{type}://{path}'.format(type=dialect, path=path)
       self.engine = create_engine(auth_path, pool_recycle=3600, echo=debug)
 
@@ -63,10 +53,11 @@ class ElementAdapter(object):
 
     # Start a session
     self.session = sessionmaker(bind=self.engine)()
+
     # Shortcut to query
     self.query = self.session.query
 
-    # ORM class shortcuts
+    # ORM class shortcuts to enable fetching dynamically
     self.classes = {
       'superset': Superset,
       'set': Set,
@@ -79,9 +70,10 @@ class ElementAdapter(object):
     }
 
   def setup(self):
-    """<public> Sets up a new database with the default tables and columns.
+    """Sets up a new database with the default tables and columns.
 
-    :returns: ``self``
+    Returns:
+      ElementAdapter: self
     """
     # Create the tables
     Base.metadata.create_all(self.engine)
@@ -89,9 +81,10 @@ class ElementAdapter(object):
     return self
 
   def tare_down(self):
-    """<public> Tares down a database (tables and columns).
+    """Tares down a database (tables and columns).
 
-    :returns: ``self``
+    Returns:
+      ElementAdapter: self
     """
     # Create the tables
     Base.metadata.drop_all(self.engine)
@@ -99,8 +92,8 @@ class ElementAdapter(object):
     return self
 
   def get(self, typ, type_id):
-    """<public> Fetches a specific element or ORM class. Calls itself
-    recursively when asked to fetch an element.
+    """Fetches a specific element or ORM class. Calls itself recursively when
+    asked to fetch an element.
 
     .. code-block:: python
 
@@ -109,9 +102,12 @@ class ElementAdapter(object):
       # Get a specific gene from the database
       >>> gene = db.get('gene', 'GIT1')
 
-    :param str typ: Element key or 'class'
-    :param str type_id: Element ID or ORM class ID
-    :returns: An element or ORM class
+    Args:
+      typ (str): Element key or 'class'
+      type_id (str): Element ID or ORM class ID
+
+    Returns:
+      orm: Element or ORM class
     """
     if typ == 'class':
       return self.classes[type_id]
@@ -122,29 +118,21 @@ class ElementAdapter(object):
     # Return the requested element object (or ``None``) if not found
     return self.session.query(klass).get(type_id)
 
-  def get_or_create(self, typ, type_id, *args):
-    # First try to fetch an existing record
-    record = self.get(typ, type_id)
-
-    if record is None:
-      record = self.create(typ, *args)
-      self.add(record)
-
-    return record
-
   def find(self, klass_id, query=None, attrs=None):
-    """<public> If the 'query' parameter is a string `find` will fetch one
-    element; just like `get`. If query is a list it will match element IDs to
-    items in that list and return a list of elements. If 'query' is ``None``
+    """If the 'query' parameter is a string `find` will fetch one element;
+    just like `get`. If query is a list it will match element IDs to items
+    in that list and return a list of elements. If 'query' is ``None``
     all elements of that class will be returned.
 
     .. versionchanged: 0.2.0
 
-    :param str klass_id: The type of element to find
-    :param str/list query: (optional) Element ID(s)
-    :param list attrs: (optional) List of columns to fetch
-    :returns: Element(s) from the database
-    :rtype: object/list
+    Args:
+      klass_id (str): The type of element to find
+      query (str/list, optional): Element Id(s)
+      attrs (list, optional): List of columns to fetch
+
+    Returns:
+      object/list: Element(s) from the database
     """
     # Get an ORM class
     klass = self.get('class', klass_id)
@@ -167,16 +155,17 @@ class ElementAdapter(object):
       return self.get(klass_id, query)
 
     else:
-      # For now
-      return []
+      raise ValueError("query must be 'None', 'list', or 'str'")
 
   def add(self, elements):
-    """<public> Add one or multiple new elements to the database and commit the
+    """Add one or multiple new elements to the database and commit the
     changes. Chainable.
 
-    :param elements: New ORM object instance or list of such
-    :type elements: object or list
-    :returns: ``self`` for chainability
+    Args:
+      elements (orm/list): New ORM object instance or list of such
+
+    Returns:
+      ElementAdapter: ``self`` for chainability
     """
     if isinstance(elements, Base):
       # Add the record to the session object
@@ -189,16 +178,19 @@ class ElementAdapter(object):
     return self
 
   def create(self, class_id, *args, **kwargs):
-    """<public> Creates a new instance of an ORM element object filled in with
+    """Creates a new instance of an ORM element object filled in with
     the given `attributes`.
 
     If attributes is a tuple they must be in the correct order. Supplying a
     `dict` doesn't require the attributes to be in any particular order.
 
-    :param str class_id: Choice between "superset", "set", "interval"
-    :param \*args: List the element attributes in the *correct order*
-    :param \**kwargs: Element attributes in whatever order you like
-    :returns: The new ORM instance object
+    Args:
+      class_id (str): Choice between "superset", "set", "interval"
+      \*args (tuple): List the element attributes in the *correct order*
+      \**kwargs (dict): Element attributes in whatever order you like
+
+    Returns:
+      orm: The new ORM instance object
     """
     if args:
       # Unpack tuple
@@ -210,9 +202,10 @@ class ElementAdapter(object):
       raise TypeError('Submit attributes as arguments or keyword arguments')
 
   def commit(self):
-    """<public> Manually persist changes made to various elements. Chainable.
+    """Manually persist changes made to various elements. Chainable.
 
-    :returns: ``self`` for chainability
+    Returns:
+      ElementAdapter: ``self`` for chainability
     """
     # Commit/persist dirty changes to the database
     self.session.commit()
@@ -220,8 +213,8 @@ class ElementAdapter(object):
     return self
 
   def set_stats(self, sample_id):
-    """<public> Calculates set level metrics to annotate transcripts.
-    Requires all related exons to already be properly annotated.
+    """Calculates set level metrics to annotate transcripts. Requires all
+    related exons to already be properly annotated.
 
     What's happening is that we are summing read depths and adequately covered
     bases for each exon in a transcript and then dividing those numbers by the
@@ -231,8 +224,11 @@ class ElementAdapter(object):
 
       Transcript annotation needs to be carried out before annotating genes!
 
-    :param str sample_id: Sample ID to match with coverage annotations
-    :returns: List of tuples: ``(<tx_id>, <coverage>, <completeness>)``
+    Args:
+      sample_id (str): Sample Id to match with coverage annotations
+
+    Returns
+      list: List of tuples: ``(<tx_id>, <coverage>, <completeness>)``
     """
     # Length of interval (in number of bases, hence +1)
     interval_length = Interval.end - Interval.start + 1
@@ -266,8 +262,8 @@ class ElementAdapter(object):
      .filter(IntervalData.sample_id == sample_id).group_by(set_id)
 
   def superset_stats(self, sample_id):
-    """<public> Calculates superset level metrics to annotate genes.
-    Requires all related sets to already be properly annotated.
+    """Calculates superset level metrics to annotate genes. Requires all
+    related sets to already be properly annotated.
 
     What's happening is that we are simply taking the average of the metrics
     on the transcript level and applying that as gene metrics. This gives a
@@ -278,8 +274,11 @@ class ElementAdapter(object):
       Annotation of transcripts needs to be acomplished before annotating
       genes!
 
-    :param str sample_id: Sample ID to match with coverage annotations
-    :returns: List of tuples: ``(<gene_id>, <coverage>, <completeness>)``
+    Args:
+      sample_id (str): Sample Id to match with coverage annotations
+
+    Returns:
+      list: List of tuples: ``(<gene_id>, <coverage>, <completeness>)``
     """
     return self.query(
       Set.superset_id,

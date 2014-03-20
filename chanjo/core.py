@@ -1,4 +1,11 @@
 # -*- coding: utf-8 -*-
+"""
+chanjo.core
+~~~~~~~~~~~
+
+Contains the individual pipelines that are invoked from the command line
+script.
+"""
 
 import errno
 import json
@@ -19,23 +26,23 @@ from .utils import annotate_inverval_group, calculate_values
 
 def annotate(sample_id, group_id, cutoff, bam_path, sql_path, dialect,
              extension, prepend, bp_threshold):
-  """Automates an internal pipeline for annotating all intervals from a SQL
-  database. Writes both metadata (header) and tabular data for each interval
-  with calculated coverage and completeness.
+  """Automates a pipeline for annotating all intervals from a SQL database.
+  Writes both metadata (header) and tabular data for each interval
+  with calculated coverage and completeness to standard out.
 
   Args:
-    sample_id (str): Unique ID for a given sample
-    group_id (str): Unique ID for a given group of samples (e.g. family)
+    sample_id (str): Unique Id for a given sample
+    group_id (str): Id for a given group of samples (e.g. family/trio)
     cutoff (int): Threshold to use for completeness calculation
     bam_path (str): Path to BAM-file
     sql_path (str): Path to existing ('built') SQL database
     dialect (str): SQL database dialect (+ optionally Python adapter to use)
     extension (int): Number of bases to extend each interval with (+/-)
-    prepend (str): Rename each contig by prepending this string
+    prepend (str): Renames each contig by prepending this string
     bp_threshold (int): Optimization number for reading BAM-file in chunks
 
   Returns:
-    int: Exit code
+    bool: Exit code (success or fail)
   """
   # Write metadata to output header
   header = {
@@ -55,10 +62,10 @@ def annotate(sample_id, group_id, cutoff, bam_path, sql_path, dialect,
   db = ElementAdapter(sql_path, dialect=dialect)
   coverage = CoverageAdapter(bam_path)
 
-  # Generate list of contig IDs
+  # Generate list of contig Ids
   contig_ids = list(get_chromosomes(prepend=prepend))
 
-  # 'Exchange' contig IDs for list of contig intervals
+  # 'Exchange' contig Ids for list of contig intervals
   contigs = (get_intervals(db, contig_id) for contig_id in contig_ids)
 
   # 'Exchange' contig intervals for list of grouped contig intervals
@@ -147,7 +154,7 @@ def import_json(sql_path, input_stream, dialect):
   for annotation in annotations:
     interval_data = db.create(
       'interval_data',
-      parent_id=convert_old_interval_id(annotation[2]),
+      parent_id=_convert_old_interval_id(annotation[2]),
       coverage=annotation[0],
       completeness=annotation[1],
       sample_id=None,
@@ -164,9 +171,19 @@ def import_json(sql_path, input_stream, dialect):
   return extend_annotations(db, sample_id, group_id)
 
 
-def convert_old_interval_id(old_id):
+def _convert_old_interval_id(old_id):
+  """Private function for converting a 0:0-based exon Id to the new 1:1-based
+  interval Id.
+
+  Args:
+    old_id (str): Old exon Id, '0:0-based'
+
+  Returns:
+    str: New interval Id, '1:1-based'
+  """
   # Split into parts (contig, start, end)
   parts = old_id.split('-')
+
   # Recombine but with converted coordinates from 0:0 to 1:1
   return '-'.join([parts[0], str(int(parts[1]) + 1), str(int(parts[2]) + 1)])
 
@@ -183,11 +200,8 @@ def extend_annotations(db, sample_id, group_id):
   Returns:
     bool: ``True`` if successful, ``False`` otherwise.
   """
-  # ======================================================
-  #   Now we can extend the annotations from exons to
-  #   transcripts and genes. Not ready yet.
-  #   N.B. We commit so the next query works!
-  # ------------------------------------------------------
+  # Extend interval annotations to sets
+  # We commit so the SQL query in the next step works
   db.add([db.create(
     'set_data',
     parent_id=raw_set[0],
@@ -231,22 +245,22 @@ def build(sql_path, ccds_path, dialect, force=False):
   # 'dialect' is in the form of '<db_type>+<connector>'
   if dialect.startswith('mysql') or path(sql_path).exists():
     if force:
-      # Wipe the database clean
-      puts(colored.blue('[chanjo]') + ' ' + colored.red('Wiping database...'))
+      # Wipe the database clean with a warning
+      puts(colored.blue('[chanjo] ') + colored.red('Wiping database...'))
       db.tare_down()
     elif dialect == 'sqlite':
       # Prevent from wiping existing database to easily
       raise OSError(errno.EEXIST, sql_path)
 
+  # Set up new tables with a notice
   puts(colored.blue('[chanjo]') + ' ' + colored.green('Building database...'))
-  # Set up new tables
   db.setup()
 
   try:
     # Start the import
     _ = import_from_ccds(db, ccds_path)
   except IntegrityError:
-    puts("Database was already set up! Please use '--force' to overide "
+    puts("Database was already built! Please use '--force' to overide "
          "this error")
     return False
 
@@ -265,13 +279,13 @@ def read_coverage(bam_path, contig_id, start, end, cutoff):
     cutoff (int): Lower threshold for completeness calculation
 
   Returns:
-    int: Exit code
+    bool: ``True`` if successful, ``False`` otherwise.
   """
   try:
     # Connect to the coverage source (BAM-file)
     coverage_source = CoverageAdapter(bam_path)
   except OSError:
-    sys.exit("The file doesn't exist: {}".format(bam_path))
+    sys.exit('The file doesn't exist: {}'.format(bam_path))
 
   # Write header for tabular output
   sys.stdout.write('#coverage\t#completeness\n')
@@ -285,7 +299,7 @@ def read_coverage(bam_path, contig_id, start, end, cutoff):
   # Write the output to stdout
   sys.stdout.write('{0}\t{1}\n'.format(coverage, completeness))
 
-  return 0
+  return True
 
 
 def peek(sql_path, superset_ids, sample_id=None, dialect='sqlite'):
@@ -298,7 +312,7 @@ def peek(sql_path, superset_ids, sample_id=None, dialect='sqlite'):
     sample_id (str, optional): Limit results to a single sample
 
   Returns:
-    int: Exit code
+    bool: ``True`` if successful, ``False`` otherwise.
   """
   # Connect to intervals store
   db = ElementAdapter(sql_path, dialect=dialect)
@@ -325,4 +339,4 @@ def peek(sql_path, superset_ids, sample_id=None, dialect='sqlite'):
     line = '\t'.join([result[0], result[1], str(result[2]), str(result[3])])
     sys.stdout.write(line + '\n')
 
-  return 0
+  return True
