@@ -285,7 +285,7 @@ def read_coverage(bam_path, contig_id, start, end, cutoff):
     # Connect to the coverage source (BAM-file)
     coverage_source = CoverageAdapter(bam_path)
   except OSError:
-    sys.exit('The file doesn't exist: {}'.format(bam_path))
+    sys.exit("The file doesn't exist: {}".format(bam_path))
 
   # Write header for tabular output
   sys.stdout.write('#coverage\t#completeness\n')

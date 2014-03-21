@@ -62,7 +62,8 @@ from path import path
 
 import chanjo
 from chanjo.core import annotate, build, import_data, import_json
-from chanjo.core import read_coverage, peek, id_generator, open_or_stdin
+from chanjo.core import read_coverage, peek
+from chanjo.utils import id_generator, open_or_stdin
 
 
 def main(args):
@@ -79,7 +80,7 @@ def main(args):
 
   try:
     cutoff = int(args['--cutoff'])
-  except ValueError, e:
+  except ValueError as e:
     # Cutoff must be an integer!
     raise e
 
@@ -92,7 +93,7 @@ def main(args):
     try:
       start = int(args['<start>'])
       end = int(args['<end>'])
-    except ValueError, e:
+    except ValueError as e:
       # Start and end must be integers!
       raise e
 
@@ -114,7 +115,7 @@ def main(args):
       extension = int(args['--extend-by'])
       bp_threshold = int(args['--threshold'])
       prepend = args['--contig-prepend']
-    except ValueError, e:
+    except ValueError as e:
       # Extension and bp threshold must be integers
       raise e
 
