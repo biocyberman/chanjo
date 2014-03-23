@@ -51,14 +51,12 @@ Options:
   -u --config=FILE     Path to YAML/JSON config file [default: global,local]
   -j --json            Import legacy JSON 'annotate' output file
 """
+# NOTE: Everything in this file is 1-based
 
-import json
 import multiprocessing
-import sys
 
 from docopt import docopt
 from clint.textui import puts, colored
-from path import path
 
 import chanjo
 from chanjo.core import annotate, build, import_data, import_json
@@ -91,8 +89,8 @@ def main(args):
     contig_id = args['<contig>']
 
     try:
-      start = int(args['<start>'])
-      end = int(args['<end>'])
+      start = int(args['<start>'])  # Still 1-based
+      end = int(args['<end>'])      # Still 1-based
     except ValueError as e:
       # Start and end must be integers!
       raise e

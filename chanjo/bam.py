@@ -18,6 +18,8 @@ by installed alongside.
 .. _Samtools: http://samtools.sourceforge.net/
 """
 
+import errno
+
 import numpy as np
 from path import path
 from pysam import Samfile
@@ -55,33 +57,37 @@ class CoverageAdapter(Samfile):
 
     .. code-block:: python
 
-      >>> adapter.read('17', 0, 5)
-      array([3., 3., 4., 4., 5., 4.])
+      >>> adapter.read('17', 1, 5)
+      array([3., 4., 4., 5., 4.])
 
     .. note::
 
-      Positions are expected to be 0:0-based. In other words; if start=0,
-      end=9 you should expect read depths for base pair positions 1-10 to
+      Positions are expected to be 1:1-based. In other words; if start=1,
+      end=9 you should expect read depths for base pair positions 1-9 to
       be returned.
 
     Args:
       contig_id (str): The contig/chromosome Id (str) of interest
-      start (int): The first position of the interval (0-based)
-      end (int): The last position of the interval (0-based)
+      start (int): The first position of the interval (1-based)
+      end (int): The last position of the interval (1-based)
 
     Returns:
       numpy.array: Array of read depths for *each* position in the interval
     """
-    # Generate a list of 0 read depth for each position
-    positions = np.zeros(end + 1 - start)
+    # Convert start to 0-based since this is what pysam expects!
+    pysam_start = start - 1
+
+    # Generate a list of 0 read depth for each position (as defaults)
+    positions = np.zeros(end - pysam_start)
 
     # Start Pileup iterator and walk through each position in the interval
     # `truncate` will make sure it starts and ends on the given positions!
-    # +1 to end because pysam otherwise stops one base short by default
-    for col in self.pileup(str(contig_id), start, end + 1, truncate=True):
+    # Pysam already expets 'end' to be 1-based - how convenient!
+    for col in self.pileup(str(contig_id), pysam_start, end, truncate=True):
 
       # Overwrite the read depth in the correct position
       # This will allow simple slicing to get at the positions of interest
-      positions[col.pos - start] = col.n
+      # Note: ``col.pos`` is 0-based, as is ``pysam_start``
+      positions[col.pos - pysam_start] = col.n
 
     return positions

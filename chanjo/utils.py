@@ -94,6 +94,7 @@ def get_intervals(db, contig_id):
     list: List of intervals on the contig
   """
   interval = db.get('class', 'interval')
+  # Extract some columns for each interval (start/end is 1-based)
   return db.session.query(interval.start, interval.end, interval.id)\
            .filter_by(contig_id=contig_id).order_by(interval.start).all()
 
@@ -110,32 +111,31 @@ def group_intervals(intervals, threshold=1000, extension=0):
     list of tuple: The next group of intervals
   """
   # Initialize stuff
-  it = iter(intervals)
-  interval = next(it)
+  intervals_iterator = iter(intervals)
+  interval = next(intervals_iterator)
 
-  iStart = interval[0]
-  iEnd = interval[1]
+  iStart = interval[0] - extension
+  iEnd = interval[1] + extension
   interval_id = interval[2]
 
   # This is where we store grouped intervals + interval ID
-  group = [(iStart - extension, iEnd + extension, interval_id)]
+  group = [(iStart, iEnd, interval_id)]
 
-  for interval in it:
-
-    start = interval[0]
-    end = interval[1]
-    interval_id = interval[2]
+  for interval in intervals_iterator:
 
     # Optionally extend (widen) the segments
-    start -= extension
-    end += extension
+    start = interval[0] - extension
+    end = interval[1] + extension
+    interval_id = interval[2]
 
-    # Updated the current combined interval
+    # Update the current combined interval
+    # Use 'max' since some intervals overlap others (all we know is that
+    # they are sorted on 'start' position)
     iEnd = max(iEnd, end)
 
     # If the current combined interval is big enough
     if (iEnd - iStart) > threshold:
-      # Return currently grouped intervals
+      # Yield currently grouped intervals
       yield group
 
       # Start a new combined interval
@@ -148,7 +148,7 @@ def group_intervals(intervals, threshold=1000, extension=0):
       # Append to the current combined interval
       group.append((start, end, interval_id))
 
-  # Return the last group
+  # Yield the last group
   yield group
 
 
@@ -242,22 +242,26 @@ def annotate_inverval_group(bam_file, contig_id, interval_group, cutoff):
   Returns:
     bool: ``True`` if successful, ``False`` otherwise.
   """
-  # Pull through interval group to find out end of total interval
+  # Pull through interval group generator to find out end of total interval
   listed_interval_group = list(interval_group)
 
-  # Get the start and end of the group interval
+  # Get the start and end of the group interval, 1:1-based
   overall_start, overall_end = merge_intervals(listed_interval_group)
 
   # Get read depths for the whole (full) group interval
+  # => input should be 1:1-based
   read_depths = bam_file.read(contig_id, overall_start, overall_end)
 
   # Loop through each of the intervals in the group
   for interval in listed_interval_group:
     # Convert to relative positions for the interval
+    # => 1:1-based, includes optional extension
+    # => ouput can be considered as '0:0-based' (e.g. 1-1=0)
     args = (interval[0], interval[1], overall_start)
     rel_start, rel_end = assign_relative_positions(*args)
 
     # Slice the overall read depth array with the relative coordinates
+    # Python expects 0:1-based when slicing => +1 to 'rel_end'
     read_depth_slice = read_depths[rel_start:rel_end + 1]
 
     # Calculate coverage and completeness for the interval

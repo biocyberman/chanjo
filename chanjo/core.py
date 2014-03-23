@@ -65,10 +65,11 @@ def annotate(sample_id, group_id, cutoff, bam_path, sql_path, dialect,
   # Generate list of contig Ids
   contig_ids = list(get_chromosomes(prepend=prepend))
 
-  # 'Exchange' contig Ids for list of contig intervals
+  # 'Exchange' contig Ids for list of contig intervals (1-based positions)
   contigs = (get_intervals(db, contig_id) for contig_id in contig_ids)
 
   # 'Exchange' contig intervals for list of grouped contig intervals
+  # As for positions, 1/0-based doesn't matter, only the lenght is considered
   grouped_intervals = (group_intervals(intervals, bp_threshold, extension)
                        for intervals in contigs)
 
@@ -76,8 +77,7 @@ def annotate(sample_id, group_id, cutoff, bam_path, sql_path, dialect,
   # 1. Read from coverage source for each full group of intervals
   # 2. For each interval in each group: calculate coverage and completeness
   # 3. Print to stdout for each processed interval
-  contigs_and_groups = zip(contig_ids, grouped_intervals)
-  for contig_id, contig_group in contigs_and_groups:
+  for contig_id, contig_group in zip(contig_ids, grouped_intervals):
     for group in contig_group:
       annotate_inverval_group(coverage, contig_id, group, cutoff)
 
@@ -274,8 +274,8 @@ def read_coverage(bam_path, contig_id, start, end, cutoff):
   Args:
     bam_path (str): Path to the coverage source BAM-file
     contig_id (str): Contig/chromosome ID
-    start (int): Beginning of interval
-    end (int): End of interval
+    start (int): Beginning of interval (1-based)
+    end (int): End of interval (1-based)
     cutoff (int): Lower threshold for completeness calculation
 
   Returns:
