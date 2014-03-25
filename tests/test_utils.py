@@ -1,8 +1,34 @@
 # -*- coding: utf-8 -*-
 
+import sys
+
 import numpy as np
 
 from .context import utils, ElementAdapter
+
+
+def test_id_generator():
+  # Test getting different length random Ids
+  ten_char_id = utils.id_generator(10)
+  assert len(ten_char_id) == 10
+
+  # Test with custom input chars
+  custom_id = utils.id_generator(chars='ATCG')
+  assert 'U' not in custom_id
+
+
+def test_open_or_stdin():
+  # Test with existing file (expect file handle)
+  existing_file = 'tests/fixtures/CCDS.mini.txt'
+  f = utils.open_or_stdin(existing_file)
+  with open(existing_file, 'r') as handle:
+    assert f.name == handle.name
+  f.close()
+
+  # Test with non-existent file (expect stdin)
+  nonexisting_file = 'tests/fixtures/i_dont_exist.txt'
+  stdin = utils.open_or_stdin(nonexisting_file)
+  assert stdin == sys.stdin
 
 
 def test_get_chromosomes():
@@ -36,22 +62,27 @@ def test_get_chromosomes():
 
 
 def test_group_intervals():
-  # Test without extension
-  intervals = [(2, 15, 1), (5, 20, 2), (25, 30, 3), (30, 65, 4), (60, 82, 5),
+  # Random intervals
+  intervals = [(5, 15, 1), (5, 20, 2), (25, 30, 3), (30, 65, 4), (60, 82, 5),
                (83, 88, 6)]
-  answer = [[(2, 15, 1), (5, 20, 2), (25, 30, 3)],
+
+  # Test without extension
+  answer = [[(5, 15, 1), (5, 20, 2), (25, 30, 3)],
             [(30, 65, 4)],
             [(60, 82, 5), (83, 88, 6)]]
   result = list(utils.group_intervals(intervals, threshold=30))
   assert result == answer
 
   # Test with extension +/- 2 bases
-  answer = [[(0, 17, 1), (3, 22, 2), (23, 32, 3)],
+  answer = [[(3, 17, 1), (3, 22, 2), (23, 32, 3)],
             [(28, 67, 4)],
             [(58, 84, 5)],
             [(81, 90, 6)]]
   result = list(utils.group_intervals(intervals, threshold=30, extension=2))
   assert result == answer
+
+  # This should also test the edge case when extension make the interval
+  # go to <= 0. Throw error!
 
 
 def test_merge_intervals():
